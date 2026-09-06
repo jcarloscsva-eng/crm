@@ -102,9 +102,11 @@ campos propios de su sector sin necesitar una migración de esquema.
   último año vs. el anterior, gasto medio por visita en aumento/disminución).
   Se implementarán como consultas SQL (o vistas materializadas) sobre
   `interactions` y `purchases`, agrupando por cliente y periodo.
-- **Frontend real**: login, listado de clientes, registro de interacciones,
-  vista de segmentos. Hoy solo existe un placeholder que confirma que el
-  contenedor arranca y puede alcanzar el backend.
+- **Frontend**: ya cubre registro de negocio, login y CRUD básico de
+  clientes (probado en Chromium con Playwright: registro → alta de
+  cliente → refresh de página → logout → login → el cliente sigue
+  visible). Falta añadir las pantallas de registro de interacciones y
+  vista de segmentos, en cuanto existan en el backend.
 - **RGPD más completo**: hoy hay borrado lógico, consentimiento de
   marketing y auditoría; falta un endpoint de exportación de datos del
   cliente (portabilidad) y un proceso de purga física tras un plazo.

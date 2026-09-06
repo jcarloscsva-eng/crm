@@ -17,12 +17,15 @@ Construido y probado de punta a punta:
 - Roles por negocio (`owner`, `admin`, `employee`) con control de acceso.
 - CRUD de clientes con campos personalizables por sector (`custom_fields`).
 - Registro de auditoría sobre cambios en clientes.
+- Frontend (React + Vite): registro de negocio, login, listado y alta de
+  clientes, sesión persistida en el navegador. Probado en Chromium real
+  (registro → crear cliente → refresh → logout → login → el cliente sigue
+  ahí).
 
 Pendiente (próximas iteraciones):
 - Interacciones (llamadas/visitas), compras, devoluciones y cálculo de puntos.
 - Segmentos pre-creados (variación de visitas y de gasto medio).
-- Frontend real (por ahora solo hay un placeholder que confirma que el
-  contenedor arranca).
+- Pantallas de frontend para lo anterior en cuanto exista en el backend.
 
 ## Requisitos
 
@@ -37,7 +40,7 @@ docker compose up --build
 ```
 
 - Backend: http://localhost:3000
-- Frontend (placeholder): http://localhost:5173
+- Frontend: http://localhost:5173
 
 La primera vez que arranca el backend, aplica automáticamente la migración
 inicial (`prisma migrate deploy`) usando el rol administrador de Postgres.
@@ -87,6 +90,14 @@ DATABASE_URL="postgresql://postgres:<tu_password>@localhost:5432/crm" \
 DATABASE_URL="postgresql://app_role:<password_de_app_role>@localhost:5432/crm" \
   JWT_SECRET="cualquier-secreto-largo" \
   npm run start:dev
+```
+
+## Desarrollo sin Docker (frontend)
+
+```bash
+cd frontend
+npm install
+VITE_API_URL="http://localhost:3000" npm run dev
 ```
 
 ## Seguridad — resumen
