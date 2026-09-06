@@ -5,11 +5,27 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
+import { InteractionsModule } from './interactions/interactions.module';
+import { PointsConfigModule } from './points-config/points-config.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PurchasesModule } from './purchases/purchases.module';
+import { ReturnsModule } from './returns/returns.module';
+import { SegmentsModule } from './segments/segments.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, UsersModule, CustomersModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    CustomersModule,
+    InteractionsModule,
+    PurchasesModule,
+    ReturnsModule,
+    PointsConfigModule,
+    SegmentsModule,
+  ],
   providers: [
     // Guards globales: por defecto TODA ruta exige JWT válido + rol autorizado.
     // Las rutas públicas (registro de negocio, login) se marcan con @Public().

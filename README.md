@@ -17,15 +17,24 @@ Construido y probado de punta a punta:
 - Roles por negocio (`owner`, `admin`, `employee`) con control de acceso.
 - CRUD de clientes con campos personalizables por sector (`custom_fields`).
 - Registro de auditoría sobre cambios en clientes.
+- Interacciones (llamadas/visitas) por cliente.
+- Compras con cálculo automático de puntos según la configuración de cada
+  negocio (puntos por unidad de moneda, importe mínimo de compra).
+- Devoluciones con reversión proporcional de puntos y validación de que no
+  se devuelva más de lo comprado.
+- Los 3 segmentos pre-creados pedidos al inicio: clientes con visitas
+  disminuidas, con gasto medio por visita aumentado, y con gasto medio por
+  visita disminuido (comparando los últimos 12 meses contra los 12
+  anteriores).
 - Frontend (React + Vite): registro de negocio, login, listado y alta de
   clientes, sesión persistida en el navegador. Probado en Chromium real
   (registro → crear cliente → refresh → logout → login → el cliente sigue
   ahí).
 
 Pendiente (próximas iteraciones):
-- Interacciones (llamadas/visitas), compras, devoluciones y cálculo de puntos.
-- Segmentos pre-creados (variación de visitas y de gasto medio).
-- Pantallas de frontend para lo anterior en cuanto exista en el backend.
+- Pantallas de frontend para interacciones, compras, devoluciones y
+  segmentos (por ahora solo existen como API, probadas con curl).
+- Exportación de datos de un cliente y purga física (RGPD más completo).
 
 ## Requisitos
 
@@ -72,6 +81,29 @@ curl -X POST http://localhost:3000/customers \
 
 # 3. Listar clientes (solo verás los de tu propio negocio)
 curl http://localhost:3000/customers -H 'Authorization: Bearer <accessToken>'
+
+# 4. Configurar las reglas de puntos de tu negocio (solo owner/admin)
+curl -X PATCH http://localhost:3000/points-config \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"pointsPerCurrencyUnit": 2, "minPurchaseAmount": 10}'
+
+# 5. Registrar una visita de un cliente
+curl -X POST http://localhost:3000/customers/<customerId>/interactions \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"type": "visit", "notes": "Revisión anual"}'
+
+# 6. Registrar una compra (calcula los puntos automáticamente)
+curl -X POST http://localhost:3000/customers/<customerId>/purchases \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"amount": 50}'
+
+# 7. Registrar una devolución parcial de esa compra
+curl -X POST http://localhost:3000/customers/<customerId>/purchases/<purchaseId>/returns \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"amount": 20, "reason": "Pieza defectuosa"}'
+
+# 8. Ver los segmentos pre-creados (solo owner/admin)
+curl http://localhost:3000/segments -H 'Authorization: Bearer <accessToken>'
 ```
 
 ## Desarrollo sin Docker (backend)

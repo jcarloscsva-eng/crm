@@ -93,20 +93,65 @@ Tablas: `tenants`, `users`, `points_config`, `customers`, `interactions`,
 `customers.custom_fields` es JSONB para permitir que cada negocio añada
 campos propios de su sector sin necesitar una migración de esquema.
 
+## Puntos, compras y devoluciones
+
+- `POST /customers/:id/purchases` calcula los puntos dentro de la misma
+  transacción que crea la compra y actualiza `customers.points_balance`
+  (usando `increment` atómico de Prisma, no una lectura-y-escritura
+  separada que podría perder una actualización concurrente).
+- Regla: si `amount >= points_config.minPurchaseAmount`, se otorgan
+  `amount * points_config.pointsPerCurrencyUnit` puntos; si no, 0.
+- `POST /customers/:id/purchases/:purchaseId/returns` sigue dos reglas:
+  1. No se puede devolver más de lo que queda por devolver de esa compra
+     (importe de la compra menos la suma de devoluciones previas) — se
+     valida antes de aceptar la devolución, en la misma transacción.
+  2. Los puntos se revierten en la misma proporción que se devuelve del
+     importe (una devolución del 40% del importe revierte el 40% de los
+     puntos que esa compra había generado), no de forma fija.
+- Los cálculos de dinero y puntos se hacen convirtiendo los `Decimal` de
+  Prisma a `number` de JavaScript y redondeando a 2 decimales. Es una
+  simplificación deliberada aceptable para un CRM de práctica; para un
+  sistema con más volumen o más precisión monetaria requerida, convendría
+  operar con una librería decimal (ej. `decimal.js`, que Prisma ya usa
+  internamente) en vez de `number`.
+
+## Segmentos pre-creados
+
+`GET /segments` (solo `owner`/`admin`) calcula los tres segmentos pedidos
+al inicio del proyecto con una única consulta SQL (`segments.service.ts`),
+comparando dos periodos de 12 meses (el actual y el inmediatamente
+anterior):
+
+- **Visitas disminuidas**: clientes cuyo número de interacciones de tipo
+  `visit` en los últimos 12 meses es menor que en los 12 meses anteriores.
+- **Gasto medio por visita aumentado / disminuido**: compara
+  `(total comprado en el periodo) / (visitas en el periodo)` entre ambos
+  periodos.
+
+Dos definiciones que son elección nuestra, no un estándar universal, y
+que quedan documentadas en el propio código para que sean explícitas:
+- "El último año" = los últimos 12 meses frente a los 12 meses anteriores
+  a esos (no un año natural).
+- "Gasto medio por visita" = gasto total del periodo entre número de
+  visitas del periodo, no un promedio por ticket individual — el esquema
+  no liga cada compra a una visita concreta, así que es una media
+  agregada, no un cálculo 1 a 1.
+
+Un cliente sin visitas en el periodo anterior (recién dado de alta) no
+puede tener una media de gasto "anterior", así que queda excluido de los
+segmentos de aumento/disminución de gasto (no se puede comparar contra
+un dato que no existe) — solo puede aparecer en "visitas disminuidas" si
+además tenía visitas antes y ahora tiene menos, lo cual por definición
+no le pasa a un cliente nuevo.
+
 ## Lo que falta por construir
 
-- **Interacciones** (llamadas/visitas): tabla ya creada, falta CRUD.
-- **Compras y devoluciones**, con el cálculo de puntos según
-  `points_config` de cada tenant (tabla ya creada).
-- **Segmentos pre-creados**: requieren comparar periodos (ej. visitas del
-  último año vs. el anterior, gasto medio por visita en aumento/disminución).
-  Se implementarán como consultas SQL (o vistas materializadas) sobre
-  `interactions` y `purchases`, agrupando por cliente y periodo.
 - **Frontend**: ya cubre registro de negocio, login y CRUD básico de
   clientes (probado en Chromium con Playwright: registro → alta de
   cliente → refresh de página → logout → login → el cliente sigue
-  visible). Falta añadir las pantallas de registro de interacciones y
-  vista de segmentos, en cuanto existan en el backend.
+  visible). Falta añadir pantallas para interacciones, compras,
+  devoluciones y segmentos — hoy esas funciones solo existen como API,
+  probadas con curl (ver ejemplos en el `README.md`).
 - **RGPD más completo**: hoy hay borrado lógico, consentimiento de
   marketing y auditoría; falta un endpoint de exportación de datos del
   cliente (portabilidad) y un proceso de purga física tras un plazo.
