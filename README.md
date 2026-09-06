@@ -26,15 +26,17 @@ Construido y probado de punta a punta:
   disminuidas, con gasto medio por visita aumentado, y con gasto medio por
   visita disminuido (comparando los últimos 12 meses contra los 12
   anteriores).
-- Frontend (React + Vite): registro de negocio, login, listado y alta de
-  clientes, sesión persistida en el navegador. Probado en Chromium real
-  (registro → crear cliente → refresh → logout → login → el cliente sigue
-  ahí).
+- Frontend (React + Vite) completo: registro de negocio, login, listado y
+  alta de clientes, ficha de cliente (interacciones, compras, devoluciones),
+  edición de reglas de puntos y vista de los 3 segmentos. Sesión persistida
+  en el navegador. Probado en Chromium real de punta a punta (registro →
+  cliente → visita → compra → ver puntos calculados → devolución parcial →
+  ver puntos revertidos → segmentos).
 
 Pendiente (próximas iteraciones):
-- Pantallas de frontend para interacciones, compras, devoluciones y
-  segmentos (por ahora solo existen como API, probadas con curl).
 - Exportación de datos de un cliente y purga física (RGPD más completo).
+- Edición de clientes desde el frontend (por API ya existe, `PATCH
+  /customers/:id`, falta el formulario).
 
 ## Requisitos
 

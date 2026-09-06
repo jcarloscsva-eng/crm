@@ -1,20 +1,31 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import { View } from './components/AppLayout';
+import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { SegmentsPage } from './pages/SegmentsPage';
 
 export function App() {
   const { session } = useAuth();
-  const [view, setView] = useState<'login' | 'register'>('login');
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [view, setView] = useState<View>({ name: 'dashboard' });
 
-  if (session) {
-    return <DashboardPage />;
+  if (!session) {
+    return authView === 'login' ? (
+      <LoginPage onSwitchToRegister={() => setAuthView('register')} />
+    ) : (
+      <RegisterPage onSwitchToLogin={() => setAuthView('login')} />
+    );
   }
 
-  return view === 'login' ? (
-    <LoginPage onSwitchToRegister={() => setView('register')} />
-  ) : (
-    <RegisterPage onSwitchToLogin={() => setView('login')} />
-  );
+  switch (view.name) {
+    case 'customer':
+      return <CustomerDetailPage customerId={view.customerId} onNavigate={setView} />;
+    case 'segments':
+      return <SegmentsPage onNavigate={setView} />;
+    default:
+      return <DashboardPage onNavigate={setView} />;
+  }
 }

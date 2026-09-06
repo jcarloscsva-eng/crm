@@ -146,12 +146,12 @@ no le pasa a un cliente nuevo.
 
 ## Lo que falta por construir
 
-- **Frontend**: ya cubre registro de negocio, login y CRUD básico de
-  clientes (probado en Chromium con Playwright: registro → alta de
-  cliente → refresh de página → logout → login → el cliente sigue
-  visible). Falta añadir pantallas para interacciones, compras,
-  devoluciones y segmentos — hoy esas funciones solo existen como API,
-  probadas con curl (ver ejemplos en el `README.md`).
+- **Frontend**: cubre registro de negocio, login, CRUD de clientes, ficha
+  de cliente con interacciones/compras/devoluciones, edición de reglas de
+  puntos y vista de segmentos. Probado en Chromium con Playwright de
+  punta a punta, incluida la verificación numérica exacta de puntos
+  (compra de 40€ a 3 puntos/€ → 120 puntos; devolución del 50% → 60
+  puntos). Falta: edición de clientes desde la UI (la API ya lo soporta).
 - **RGPD más completo**: hoy hay borrado lógico, consentimiento de
   marketing y auditoría; falta un endpoint de exportación de datos del
   cliente (portabilidad) y un proceso de purga física tras un plazo.
