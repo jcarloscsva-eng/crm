@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CustomersService } from '../customers/customers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
@@ -14,23 +14,52 @@ export class PurchasesService {
     await this.customersService.findOne(tenantId, customerId);
 
     return this.prisma.withTenant(tenantId, async (tx) => {
-      const pointsConfig = await tx.pointsConfig.findUniqueOrThrow({ where: { tenantId } });
+      const productIds = [...new Set(dto.items.map((i) => i.productId))];
+      const products = await tx.product.findMany({ where: { id: { in: productIds } } });
+      const productById = new Map(products.map((p) => [p.id, p]));
 
+      const lines = dto.items.map((item) => {
+        const product = productById.get(item.productId);
+        if (!product) {
+          throw new NotFoundException(`Producto ${item.productId} no encontrado`);
+        }
+        const unitPrice = item.unitPrice ?? Number(product.price);
+        const subtotal = Math.round(item.quantity * unitPrice * 100) / 100;
+        return { productId: item.productId, quantity: item.quantity, unitPrice, subtotal };
+      });
+
+      const total = Math.round(lines.reduce((sum, l) => sum + l.subtotal, 0) * 100) / 100;
+
+      const pointsConfig = await tx.pointsConfig.findUniqueOrThrow({ where: { tenantId } });
       const minPurchaseAmount = Number(pointsConfig.minPurchaseAmount);
       const pointsPerCurrencyUnit = Number(pointsConfig.pointsPerCurrencyUnit);
-      const pointsEarned =
-        dto.amount >= minPurchaseAmount ? Math.round(dto.amount * pointsPerCurrencyUnit * 100) / 100 : 0;
+      const pointsEarned = total >= minPurchaseAmount ? Math.round(total * pointsPerCurrencyUnit * 100) / 100 : 0;
 
       const purchase = await tx.purchase.create({
         data: {
           tenantId,
           customerId,
-          amount: dto.amount,
+          amount: total,
           pointsEarned,
           occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
           createdBy: userId,
         },
       });
+
+      await Promise.all(
+        lines.map((line) =>
+          tx.purchaseItem.create({
+            data: {
+              tenantId,
+              purchaseId: purchase.id,
+              productId: line.productId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              subtotal: line.subtotal,
+            },
+          }),
+        ),
+      );
 
       await tx.customer.update({
         where: { id: customerId },
@@ -44,11 +73,14 @@ export class PurchasesService {
           action: 'purchase.created',
           entityType: 'purchase',
           entityId: purchase.id,
-          metadata: { customerId, amount: dto.amount, pointsEarned },
+          metadata: { customerId, amount: total, pointsEarned, items: lines },
         },
       });
 
-      return purchase;
+      return tx.purchase.findUniqueOrThrow({
+        where: { id: purchase.id },
+        include: { items: { include: { product: true } }, returns: true },
+      });
     });
   }
 
@@ -57,7 +89,7 @@ export class PurchasesService {
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.purchase.findMany({
         where: { customerId },
-        include: { returns: true },
+        include: { items: { include: { product: true } }, returns: true },
         orderBy: { occurredAt: 'desc' },
       }),
     );

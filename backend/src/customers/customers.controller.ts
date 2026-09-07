@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { AuthenticatedUser } from '../common/types';
@@ -16,8 +16,8 @@ export class CustomersController {
   }
 
   @Get()
-  findAll(@CurrentUser() currentUser: AuthenticatedUser) {
-    return this.customersService.findAll(currentUser.tenantId);
+  findAll(@CurrentUser() currentUser: AuthenticatedUser, @Query('q') q?: string) {
+    return this.customersService.findAll(currentUser.tenantId, q);
   }
 
   @Get(':id')

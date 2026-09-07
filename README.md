@@ -26,14 +26,26 @@ Construido y probado de punta a punta:
   disminuidas, con gasto medio por visita aumentado, y con gasto medio por
   visita disminuido (comparando los últimos 12 meses contra los 12
   anteriores).
-- Frontend (React + Vite) completo: registro de negocio, login, listado y
-  alta de clientes, ficha de cliente (interacciones, compras, devoluciones),
-  edición de reglas de puntos y vista de los 3 segmentos. Sesión persistida
-  en el navegador. Probado en Chromium real de punta a punta (registro →
-  cliente → visita → compra → ver puntos calculados → devolución parcial →
-  ver puntos revertidos → segmentos).
+- Catálogo de productos (nombre, categoría, precio) por negocio.
+- Compras itemizadas: cada compra tiene una o varias líneas de producto
+  (cantidad + precio en el momento de la venta), y el total/puntos se
+  calculan a partir de esas líneas.
+- Llamadas comerciales con resultado estructurado (venta cerrada /
+  interesado / sin interés / volver a llamar) y fecha de seguimiento
+  opcional.
+- Reportes (`GET /reports/customers`, `GET /reports/products`): top
+  clientes por gasto neto y por puntos, productos más vendidos por
+  cantidad e ingresos.
+- Búsqueda de clientes por nombre/teléfono/email (`GET /customers?q=`).
+- Frontend (React + Vite): registro de negocio, login, clientes, ficha de
+  cliente (interacciones, compras, devoluciones), reglas de puntos y
+  segmentos. Sesión persistida en el navegador. Probado en Chromium real
+  de punta a punta.
 
 Pendiente (próximas iteraciones):
+- Pantallas de frontend para productos, reportes, compras itemizadas,
+  llamadas con resultado, búsqueda y el botón de acción rápida (por ahora
+  esto último solo existe como API).
 - Exportación de datos de un cliente y purga física (RGPD más completo).
 - Edición de clientes desde el frontend (por API ya existe, `PATCH
   /customers/:id`, falta el formulario).
@@ -94,18 +106,35 @@ curl -X POST http://localhost:3000/customers/<customerId>/interactions \
   -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
   -d '{"type": "visit", "notes": "Revisión anual"}'
 
-# 6. Registrar una compra (calcula los puntos automáticamente)
+# 5b. Registrar una llamada comercial con resultado
+curl -X POST http://localhost:3000/customers/<customerId>/interactions \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"type": "call", "outcome": "call_back", "followUpAt": "2026-10-01T10:00:00Z"}'
+
+# 6. Crear un producto (solo owner/admin)
+curl -X POST http://localhost:3000/products \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"name": "Ventana PVC 1x1m", "category": "Ventanas", "price": 150}'
+
+# 7. Registrar una compra con líneas de producto (calcula el total y los puntos)
 curl -X POST http://localhost:3000/customers/<customerId>/purchases \
   -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
-  -d '{"amount": 50}'
+  -d '{"items": [{"productId": "<productId>", "quantity": 2}]}'
 
-# 7. Registrar una devolución parcial de esa compra
+# 8. Registrar una devolución parcial de esa compra
 curl -X POST http://localhost:3000/customers/<customerId>/purchases/<purchaseId>/returns \
   -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
   -d '{"amount": 20, "reason": "Pieza defectuosa"}'
 
-# 8. Ver los segmentos pre-creados (solo owner/admin)
+# 9. Ver los segmentos pre-creados (solo owner/admin)
 curl http://localhost:3000/segments -H 'Authorization: Bearer <accessToken>'
+
+# 10. Buscar clientes
+curl "http://localhost:3000/customers?q=marisa" -H 'Authorization: Bearer <accessToken>'
+
+# 11. Reportes (solo owner/admin)
+curl http://localhost:3000/reports/customers -H 'Authorization: Bearer <accessToken>'
+curl http://localhost:3000/reports/products -H 'Authorization: Bearer <accessToken>'
 ```
 
 ## Desarrollo sin Docker (backend)

@@ -8,7 +8,9 @@ import { CustomersModule } from './customers/customers.module';
 import { InteractionsModule } from './interactions/interactions.module';
 import { PointsConfigModule } from './points-config/points-config.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
+import { ReportsModule } from './reports/reports.module';
 import { ReturnsModule } from './returns/returns.module';
 import { SegmentsModule } from './segments/segments.module';
 import { UsersModule } from './users/users.module';
@@ -21,10 +23,12 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     CustomersModule,
     InteractionsModule,
+    ProductsModule,
     PurchasesModule,
     ReturnsModule,
     PointsConfigModule,
     SegmentsModule,
+    ReportsModule,
   ],
   providers: [
     // Guards globales: por defecto TODA ruta exige JWT válido + rol autorizado.

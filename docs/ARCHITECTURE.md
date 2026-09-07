@@ -83,15 +83,50 @@ que el recurso existe).
 
 ## Modelo de datos
 
-Ver `backend/prisma/schema.prisma` y la migración
-`backend/prisma/migrations/00000000000000_init/migration.sql` (fuente de
-verdad, incluye las políticas RLS que Prisma no modela de forma nativa).
+Ver `backend/prisma/schema.prisma` y las migraciones en
+`backend/prisma/migrations/` (fuente de verdad, incluyen las políticas RLS
+que Prisma no modela de forma nativa). **Importante**: una vez que una
+migración se ha aplicado alguna vez (incluida la del propio usuario en su
+Docker local), no se edita — los cambios de esquema posteriores van en un
+directorio de migración nuevo, para que `prisma migrate deploy` los
+detecte y aplique sobre una base de datos que ya tiene datos.
 
 Tablas: `tenants`, `users`, `points_config`, `customers`, `interactions`,
-`purchases`, `returns`, `audit_log`.
+`products`, `purchases`, `purchase_items`, `returns`, `audit_log`.
 
 `customers.custom_fields` es JSONB para permitir que cada negocio añada
 campos propios de su sector sin necesitar una migración de esquema.
+
+## Productos y compras itemizadas
+
+Las compras dejaron de ser un importe suelto: cada `purchase` tiene una o
+varias `purchase_items` (producto + cantidad + precio en el momento de la
+venta). El precio se copia a la línea en el momento de la compra
+(`purchase_items.unit_price`) en vez de leerse siempre de `products.price`,
+para que un cambio de precio futuro no altere el histórico de ventas ya
+registradas. `purchases.amount` se sigue guardando (ahora calculado como
+la suma de las líneas) para no romper el cálculo de puntos ni las
+devoluciones, que ya trabajaban sobre el total.
+
+Un producto no se borra nunca físicamente (rompería el historial de
+`purchase_items`, que lo referencia); se desactiva (`products.active =
+false`), igual que el borrado lógico de clientes.
+
+## Llamadas comerciales con resultado
+
+`interactions.outcome` (`sale_closed` / `interested` / `not_interested` /
+`call_back`) y `interactions.follow_up_at` son columnas nuevas, nulas para
+visitas — el backend rechaza con 400 cualquier intento de fijar `outcome`
+o `followUpAt` en una interacción que no sea de tipo `call`.
+
+## Reportes
+
+`GET /reports/customers` y `GET /reports/products` (solo owner/admin):
+top clientes por gasto neto (compras menos devoluciones, no gasto bruto)
+y por puntos acumulados; productos más vendidos por cantidad y por
+ingresos. Igual que en segmentos, son agregaciones SQL directas sobre
+`purchases`/`returns`/`purchase_items`, no vistas materializadas — a este
+volumen de datos no hace falta esa complejidad.
 
 ## Puntos, compras y devoluciones
 
@@ -100,7 +135,8 @@ campos propios de su sector sin necesitar una migración de esquema.
   (usando `increment` atómico de Prisma, no una lectura-y-escritura
   separada que podría perder una actualización concurrente).
 - Regla: si `amount >= points_config.minPurchaseAmount`, se otorgan
-  `amount * points_config.pointsPerCurrencyUnit` puntos; si no, 0.
+  `amount * points_config.pointsPerCurrencyUnit` puntos; si no, 0. El
+  `amount` es ahora la suma de las líneas de producto de la compra.
 - `POST /customers/:id/purchases/:purchaseId/returns` sigue dos reglas:
   1. No se puede devolver más de lo que queda por devolver de esa compra
      (importe de la compra menos la suma de devoluciones previas) — se

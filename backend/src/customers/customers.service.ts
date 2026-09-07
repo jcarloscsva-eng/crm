@@ -33,10 +33,21 @@ export class CustomersService {
     });
   }
 
-  findAll(tenantId: string) {
+  findAll(tenantId: string, search?: string) {
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.customer.findMany({
-        where: { deletedAt: null },
+        where: {
+          deletedAt: null,
+          ...(search
+            ? {
+                OR: [
+                  { fullName: { contains: search, mode: 'insensitive' } },
+                  { phone: { contains: search, mode: 'insensitive' } },
+                  { email: { contains: search, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
         orderBy: { createdAt: 'desc' },
       }),
     );
