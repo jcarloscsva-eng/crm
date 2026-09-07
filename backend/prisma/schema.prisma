@@ -206,3 +206,16 @@ model AuditLog {
 
   @@map("audit_log")
 }
+
+model SavedSegment {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  name       String
+  periodDays Int      @default(90) @map("period_days")
+  matchType  String   @default("all") @map("match_type")
+  conditions Json
+  createdBy  String?  @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("saved_segments")
+}

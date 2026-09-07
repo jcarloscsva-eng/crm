@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api, ApiError, PointsConfig, SegmentCustomer, SegmentsResponse } from '../api';
 import { useAuth } from '../AuthContext';
 import { AppLayout, View } from '../components/AppLayout';
+import { CustomSegmentBuilder } from '../components/CustomSegmentBuilder';
 
 function SegmentList({ title, customers, showAvg }: { title: string; customers: SegmentCustomer[]; showAvg?: boolean }) {
   return (
@@ -58,6 +59,7 @@ export function SegmentsPage({ onNavigate }: { onNavigate: (view: View) => void 
   const [minPurchaseAmount, setMinPurchaseAmount] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
+  const [tab, setTab] = useState<'preset' | 'custom'>('preset');
 
   if (!session) {
     return null;
@@ -141,20 +143,33 @@ export function SegmentsPage({ onNavigate }: { onNavigate: (view: View) => void 
       )}
 
       <h2>Segmentos</h2>
-      {loading || !segments ? (
-        <p>Cargando...</p>
+      <div className="report-tabs">
+        <button type="button" className={tab === 'preset' ? 'active' : ''} onClick={() => setTab('preset')}>
+          Pre-creados
+        </button>
+        <button type="button" className={tab === 'custom' ? 'active' : ''} onClick={() => setTab('custom')}>
+          Personalizados
+        </button>
+      </div>
+
+      {tab === 'preset' ? (
+        loading || !segments ? (
+          <p>Cargando...</p>
+        ) : (
+          <>
+            <p className="business-type">
+              Comparando los últimos {segments.periodMonths} meses frente a los {segments.periodMonths} meses
+              anteriores.
+            </p>
+            <div className="segment-grid">
+              <SegmentList title="Visitas disminuidas" customers={segments.visitsDecreased} />
+              <SegmentList title="Gasto medio por visita ↑" customers={segments.avgSpendIncreased} showAvg />
+              <SegmentList title="Gasto medio por visita ↓" customers={segments.avgSpendDecreased} showAvg />
+            </div>
+          </>
+        )
       ) : (
-        <>
-          <p className="business-type">
-            Comparando los últimos {segments.periodMonths} meses frente a los {segments.periodMonths} meses
-            anteriores.
-          </p>
-          <div className="segment-grid">
-            <SegmentList title="Visitas disminuidas" customers={segments.visitsDecreased} />
-            <SegmentList title="Gasto medio por visita ↑" customers={segments.avgSpendIncreased} showAvg />
-            <SegmentList title="Gasto medio por visita ↓" customers={segments.avgSpendDecreased} showAvg />
-          </div>
-        </>
+        <CustomSegmentBuilder />
       )}
     </AppLayout>
   );

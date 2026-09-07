@@ -32,4 +32,16 @@ export class ProductsService {
       }),
     );
   }
+
+  async categories(tenantId: string) {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.product.findMany({
+        where: { category: { not: null } },
+        select: { category: true },
+        distinct: ['category'],
+        orderBy: { category: 'asc' },
+      }),
+    );
+    return rows.map((r) => r.category!);
+  }
 }

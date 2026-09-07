@@ -138,6 +138,62 @@ export interface SegmentsResponse {
   avgSpendDecreased: SegmentCustomer[];
 }
 
+export type SegmentFieldKey =
+  | 'visits_count'
+  | 'calls_count'
+  | 'total_spend'
+  | 'avg_spend_per_visit'
+  | 'points_balance'
+  | 'days_since_last_visit'
+  | 'days_since_last_purchase'
+  | 'customer_age_days'
+  | 'purchased_category';
+
+export type SegmentOperator = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'between';
+
+export interface FieldDefinition {
+  key: SegmentFieldKey;
+  label: string;
+  type: 'number' | 'category';
+  periodAware: boolean;
+  operators: SegmentOperator[];
+}
+
+export interface SegmentCondition {
+  field: SegmentFieldKey;
+  operator: SegmentOperator;
+  value: string;
+  value2?: string;
+}
+
+export interface SegmentQuery {
+  periodDays: number;
+  matchType: 'all' | 'any';
+  conditions: SegmentCondition[];
+}
+
+export interface CustomerFactsRow {
+  id: string;
+  fullName: string;
+  visits_count: number;
+  calls_count: number;
+  total_spend: number;
+  avg_spend_per_visit: number | null;
+  points_balance: number;
+  days_since_last_visit: number;
+  days_since_last_purchase: number;
+  customer_age_days: number;
+}
+
+export interface SavedSegment {
+  id: string;
+  name: string;
+  periodDays: number;
+  matchType: 'all' | 'any';
+  conditions: SegmentCondition[];
+  createdAt: string;
+}
+
 export interface CustomerSpendRow {
   id: string;
   fullName: string;
@@ -249,6 +305,10 @@ export const api = {
     return request<Product>(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token);
   },
 
+  getProductCategories(token: string) {
+    return request<string[]>('/products/categories', {}, token);
+  },
+
   getCustomerReport(token: string) {
     return request<CustomerReport>('/reports/customers', {}, token);
   },
@@ -280,6 +340,30 @@ export const api = {
 
   getSegments(token: string) {
     return request<SegmentsResponse>('/segments', {}, token);
+  },
+
+  getSegmentFields(token: string) {
+    return request<FieldDefinition[]>('/custom-segments/fields', {}, token);
+  },
+
+  previewCustomSegment(token: string, dto: SegmentQuery) {
+    return request<CustomerFactsRow[]>('/custom-segments/preview', { method: 'POST', body: JSON.stringify(dto) }, token);
+  },
+
+  createCustomSegment(token: string, dto: SegmentQuery & { name: string }) {
+    return request<SavedSegment>('/custom-segments', { method: 'POST', body: JSON.stringify(dto) }, token);
+  },
+
+  listCustomSegments(token: string) {
+    return request<SavedSegment[]>('/custom-segments', {}, token);
+  },
+
+  getCustomSegmentResults(token: string, id: string) {
+    return request<{ segment: SavedSegment; results: CustomerFactsRow[] }>(`/custom-segments/${id}/results`, {}, token);
+  },
+
+  deleteCustomSegment(token: string, id: string) {
+    return request<{ id: string }>(`/custom-segments/${id}`, { method: 'DELETE' }, token);
   },
 };
 

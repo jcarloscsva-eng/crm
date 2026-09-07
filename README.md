@@ -43,15 +43,23 @@ Construido y probado de punta a punta:
   clientes por gasto neto y por puntos, productos más vendidos por
   cantidad e ingresos.
 - Búsqueda de clientes por nombre/teléfono/email (`GET /customers?q=`).
+- **Constructor de filtros personalizados** (`/custom-segments/*`): define
+  condiciones sobre visitas, llamadas, gasto, puntos, inactividad,
+  antigüedad o categoría de producto comprada, combinadas con Y/O sobre
+  un periodo de tiempo, previsualiza quién coincide y guárdalo con nombre
+  para volver a consultarlo (los resultados se recalculan en vivo, nunca
+  se cachean). Pensado para preguntas tipo "tengo un producto nuevo de
+  categoría X, ¿quién de mis clientes ya ha comprado algo de esa
+  categoría?".
 - Frontend (React + Vite) completo, incluidas las funciones de arriba:
   pantalla separada de administrador de la plataforma (autorizar negocios,
   ver cuántos usuarios/clientes tiene cada uno), login de negocio, clientes
   (con búsqueda), ficha de cliente (interacciones/llamadas con resultado,
   compras itemizadas con productos, devoluciones), catálogo de productos,
-  reglas de puntos, segmentos, reportes, y un botón de acción rápida
-  flotante (nuevo cliente / nueva llamada / nueva compra) visible en toda
-  la app. Sesión persistida en el navegador. Probado en Chromium real de
-  punta a punta.
+  reglas de puntos, segmentos pre-creados y personalizados, reportes, y un
+  botón de acción rápida flotante (nuevo cliente / nueva llamada / nueva
+  compra) visible en toda la app. Sesión persistida en el navegador.
+  Probado en Chromium real de punta a punta.
 
 Pendiente (próximas iteraciones):
 - Exportación de datos de un cliente y purga física (RGPD más completo).
@@ -158,6 +166,26 @@ curl "http://localhost:3000/customers?q=marisa" -H 'Authorization: Bearer <acces
 # 11. Reportes (solo owner/admin)
 curl http://localhost:3000/reports/customers -H 'Authorization: Bearer <accessToken>'
 curl http://localhost:3000/reports/products -H 'Authorization: Bearer <accessToken>'
+
+# 12. Filtro personalizado: clientes que compraron de la categoría "Ventanas"
+#     en los últimos 90 días (solo owner/admin)
+curl -X POST http://localhost:3000/custom-segments/preview \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{
+    "periodDays": 90,
+    "matchType": "all",
+    "conditions": [{"field": "purchased_category", "operator": "eq", "value": "Ventanas"}]
+  }'
+
+# 12b. Guardar ese filtro para reutilizarlo
+curl -X POST http://localhost:3000/custom-segments \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{
+    "name": "Compradores de Ventanas",
+    "periodDays": 90,
+    "matchType": "all",
+    "conditions": [{"field": "purchased_category", "operator": "eq", "value": "Ventanas"}]
+  }'
 ```
 
 ## Desarrollo sin Docker (backend)

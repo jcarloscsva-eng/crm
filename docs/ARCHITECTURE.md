@@ -271,6 +271,54 @@ un dato que no existe) — solo puede aparecer en "visitas disminuidas" si
 además tenía visitas antes y ahora tiene menos, lo cual por definición
 no le pasa a un cliente nuevo.
 
+## Constructor de filtros personalizados (`custom-segments`)
+
+Los 3 segmentos de arriba son fijos. Este módulo (`backend/src/custom-segments/`)
+es el "constructor acotado" para preguntas ad-hoc tipo "tengo un producto
+nuevo de categoría X, ¿quién ya ha comprado algo de esa categoría?".
+
+**Simplificaciones deliberadas** (lo que lo hace seguro y manejable, no
+un motor de reglas de negocio completo):
+- **Un solo periodo de tiempo para todo el filtro** (ej. "últimos 90 días"),
+  no uno distinto por condición. Los campos que no tienen sentido con
+  periodo (`points_balance`, `days_since_last_visit`,
+  `days_since_last_purchase`, `customer_age_days`) simplemente lo ignoran.
+- **Condiciones planas combinadas con una única Y/O para todo el filtro**
+  (`matchType: 'all' | 'any'`), sin grupos anidados mezclando ambas.
+- **9 campos fijos** (`field-catalog.ts`), no cualquier columna: visitas,
+  llamadas, gasto total, gasto medio por visita, saldo de puntos, días
+  desde la última visita/compra, antigüedad del cliente, y categoría de
+  producto comprada.
+
+**Por qué es seguro pese a construir SQL dinámicamente**: el campo y el
+operador de cada condición se validan contra un enum fijo
+(`@IsIn(FIELD_KEYS)` / `@IsIn(ALL_OPERATORS)` en los DTOs) antes de tocar
+la base de datos — nunca se interpola texto libre del usuario como
+nombre de columna u operador SQL, solo como *valor* parametrizado (vía
+las plantillas etiquetadas `Prisma.sql`, que Prisma vincula de forma
+segura). `Prisma.raw(...)` solo envuelve strings que ya vienen de ese
+lookup fijo, nunca del cuerpo de la petición directamente.
+
+**Cómo funciona la consulta** (`custom-segments.service.ts`): un CTE
+`customer_facts` calcula, para cada cliente, todos los campos numéricos
+de una vez (visitas/llamadas/gasto del periodo vía subconsultas
+agregadas, más los campos sin periodo). La condición `purchased_category`
+es la excepción: no es una columna precalculada, se traduce a un
+`EXISTS` contra `purchase_items`/`products`, porque el valor a comparar
+(la categoría) solo se conoce al ejecutar la consulta. Un cliente que
+nunca visitó o nunca compró se trata como "hace 999999 días" (no como
+`NULL`), a propósito: así aparece correctamente en filtros de
+inactividad tipo "sin visitar hace más de 90 días", en vez de quedar
+excluido por una comparación contra `NULL` que en SQL nunca es verdadera.
+
+Los filtros se guardan (`saved_segments`, con RLS desde el principio con
+el patrón `NULLIF` correcto) como configuración — nombre + periodo +
+tipo de coincidencia + condiciones en JSON —, no como resultados: cada
+vez que se abre un filtro guardado, se recalcula en vivo contra los
+datos actuales. Verificado con datos sintéticos donde el resultado
+esperado se conocía de antemano (incluyendo Y vs. O, `between`, y el
+caso de un cliente que nunca tuvo actividad).
+
 ## Frontend
 
 Cubre todo el backend descrito arriba: registro de negocio, login,

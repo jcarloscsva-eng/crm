@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
+import { CustomSegmentsModule } from './custom-segments/custom-segments.module';
 import { InteractionsModule } from './interactions/interactions.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { PointsConfigModule } from './points-config/points-config.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     SegmentsModule,
     ReportsModule,
     PlatformAdminModule,
+    CustomSegmentsModule,
   ],
   providers: [
     // Guards globales: por defecto TODA ruta exige JWT válido + rol autorizado.

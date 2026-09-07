@@ -21,6 +21,11 @@ export class ProductsController {
     return this.productsService.findAll(currentUser.tenantId, includeInactive === 'true');
   }
 
+  @Get('categories')
+  categories(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.productsService.categories(currentUser.tenantId);
+  }
+
   @Roles('owner', 'admin')
   @Patch(':id')
   update(
