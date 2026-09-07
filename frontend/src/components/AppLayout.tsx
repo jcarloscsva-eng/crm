@@ -1,7 +1,13 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../AuthContext';
+import { QuickActionModal } from './QuickActionModal';
 
-export type View = { name: 'dashboard' } | { name: 'customer'; customerId: string } | { name: 'segments' };
+export type View =
+  | { name: 'dashboard' }
+  | { name: 'customer'; customerId: string }
+  | { name: 'segments' }
+  | { name: 'products' }
+  | { name: 'reports' };
 
 export function AppLayout({
   active,
@@ -16,7 +22,7 @@ export function AppLayout({
   if (!session) {
     return null;
   }
-  const canSeeSegments = session.user.role === 'owner' || session.user.role === 'admin';
+  const isManager = session.user.role === 'owner' || session.user.role === 'admin';
 
   return (
     <div className="app-shell">
@@ -34,13 +40,29 @@ export function AppLayout({
             >
               Clientes
             </button>
-            {canSeeSegments && (
+            <button
+              type="button"
+              className={active === 'products' ? 'nav-link active' : 'nav-link'}
+              onClick={() => onNavigate({ name: 'products' })}
+            >
+              Productos
+            </button>
+            {isManager && (
               <button
                 type="button"
                 className={active === 'segments' ? 'nav-link active' : 'nav-link'}
                 onClick={() => onNavigate({ name: 'segments' })}
               >
                 Segmentos
+              </button>
+            )}
+            {isManager && (
+              <button
+                type="button"
+                className={active === 'reports' ? 'nav-link active' : 'nav-link'}
+                onClick={() => onNavigate({ name: 'reports' })}
+              >
+                Reportes
               </button>
             )}
           </nav>
@@ -50,6 +72,7 @@ export function AppLayout({
         </button>
       </div>
       <div className="content">{children}</div>
+      <QuickActionModal onNavigate={onNavigate} />
     </div>
   );
 }

@@ -37,18 +37,21 @@ Construido y probado de punta a punta:
   clientes por gasto neto y por puntos, productos más vendidos por
   cantidad e ingresos.
 - Búsqueda de clientes por nombre/teléfono/email (`GET /customers?q=`).
-- Frontend (React + Vite): registro de negocio, login, clientes, ficha de
-  cliente (interacciones, compras, devoluciones), reglas de puntos y
-  segmentos. Sesión persistida en el navegador. Probado en Chromium real
-  de punta a punta.
+- Frontend (React + Vite) completo, incluidas las funciones de arriba:
+  registro de negocio, login, clientes (con búsqueda), ficha de cliente
+  (interacciones/llamadas con resultado, compras itemizadas con productos,
+  devoluciones), catálogo de productos, reglas de puntos, segmentos,
+  reportes, y un botón de acción rápida flotante (nuevo cliente / nueva
+  llamada / nueva compra) visible en toda la app. Sesión persistida en el
+  navegador. Probado en Chromium real de punta a punta.
 
 Pendiente (próximas iteraciones):
-- Pantallas de frontend para productos, reportes, compras itemizadas,
-  llamadas con resultado, búsqueda y el botón de acción rápida (por ahora
-  esto último solo existe como API).
 - Exportación de datos de un cliente y purga física (RGPD más completo).
 - Edición de clientes desde el frontend (por API ya existe, `PATCH
   /customers/:id`, falta el formulario).
+- Permitir editar el precio unitario de una línea de compra desde el
+  frontend (la API ya lo admite; hoy la UI siempre usa el precio actual
+  del producto).
 
 ## Requisitos
 

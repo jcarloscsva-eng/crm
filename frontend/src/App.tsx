@@ -4,7 +4,9 @@ import { View } from './components/AppLayout';
 import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { ProductsPage } from './pages/ProductsPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { SegmentsPage } from './pages/SegmentsPage';
 
 export function App() {
@@ -25,6 +27,10 @@ export function App() {
       return <CustomerDetailPage customerId={view.customerId} onNavigate={setView} />;
     case 'segments':
       return <SegmentsPage onNavigate={setView} />;
+    case 'products':
+      return <ProductsPage onNavigate={setView} />;
+    case 'reports':
+      return <ReportsPage onNavigate={setView} />;
     default:
       return <DashboardPage onNavigate={setView} />;
   }

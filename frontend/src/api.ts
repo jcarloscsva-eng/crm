@@ -56,11 +56,22 @@ export interface Customer {
   deletedAt: string | null;
 }
 
+export type CallOutcome = 'sale_closed' | 'interested' | 'not_interested' | 'call_back';
+
+export const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
+  sale_closed: 'Venta cerrada',
+  interested: 'Interesado',
+  not_interested: 'Sin interés',
+  call_back: 'Volver a llamar',
+};
+
 export interface Interaction {
   id: string;
   customerId: string;
   type: 'call' | 'visit';
   notes: string | null;
+  outcome: CallOutcome | null;
+  followUpAt: string | null;
   occurredAt: string;
   createdAt: string;
 }
@@ -75,12 +86,32 @@ export interface ReturnRecord {
   occurredAt: string;
 }
 
+export interface Product {
+  id: string;
+  tenantId: string;
+  name: string;
+  category: string | null;
+  price: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface PurchaseItem {
+  id: string;
+  productId: string;
+  quantity: string;
+  unitPrice: string;
+  subtotal: string;
+  product: Product;
+}
+
 export interface Purchase {
   id: string;
   customerId: string;
   amount: string;
   pointsEarned: string;
   occurredAt: string;
+  items: PurchaseItem[];
   returns: ReturnRecord[];
 }
 
@@ -107,6 +138,36 @@ export interface SegmentsResponse {
   avgSpendDecreased: SegmentCustomer[];
 }
 
+export interface CustomerSpendRow {
+  id: string;
+  fullName: string;
+  grossSpend: number;
+  totalReturned: number;
+  netSpend: number;
+  pointsBalance: number;
+}
+
+export interface CustomerReport {
+  totalCustomers: number;
+  newThisMonth: number;
+  topBySpend: CustomerSpendRow[];
+  topByPoints: CustomerSpendRow[];
+}
+
+export interface ProductSalesRow {
+  id: string;
+  name: string;
+  category: string | null;
+  totalQuantity: number;
+  totalRevenue: number;
+}
+
+export interface ProductReport {
+  totalActiveProducts: number;
+  topByQuantity: ProductSalesRow[];
+  topByRevenue: ProductSalesRow[];
+}
+
 export const api = {
   registerTenant(data: {
     slug: string;
@@ -123,8 +184,9 @@ export const api = {
     return request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) });
   },
 
-  listCustomers(token: string) {
-    return request<Customer[]>('/customers', {}, token);
+  listCustomers(token: string, search?: string) {
+    const qs = search ? `?q=${encodeURIComponent(search)}` : '';
+    return request<Customer[]>(`/customers${qs}`, {}, token);
   },
 
   createCustomer(
@@ -146,7 +208,11 @@ export const api = {
     return request<Interaction[]>(`/customers/${customerId}/interactions`, {}, token);
   },
 
-  createInteraction(token: string, customerId: string, data: { type: 'call' | 'visit'; notes?: string }) {
+  createInteraction(
+    token: string,
+    customerId: string,
+    data: { type: 'call' | 'visit'; notes?: string; outcome?: CallOutcome; followUpAt?: string },
+  ) {
     return request<Interaction>(
       `/customers/${customerId}/interactions`,
       { method: 'POST', body: JSON.stringify(data) },
@@ -158,12 +224,37 @@ export const api = {
     return request<Purchase[]>(`/customers/${customerId}/purchases`, {}, token);
   },
 
-  createPurchase(token: string, customerId: string, data: { amount: number }) {
+  createPurchase(
+    token: string,
+    customerId: string,
+    data: { items: { productId: string; quantity: number; unitPrice?: number }[] },
+  ) {
     return request<Purchase>(
       `/customers/${customerId}/purchases`,
       { method: 'POST', body: JSON.stringify(data) },
       token,
     );
+  },
+
+  listProducts(token: string, includeInactive?: boolean) {
+    const qs = includeInactive ? '?includeInactive=true' : '';
+    return request<Product[]>(`/products${qs}`, {}, token);
+  },
+
+  createProduct(token: string, data: { name: string; category?: string; price: number }) {
+    return request<Product>('/products', { method: 'POST', body: JSON.stringify(data) }, token);
+  },
+
+  updateProduct(token: string, id: string, data: { name?: string; category?: string; price?: number; active?: boolean }) {
+    return request<Product>(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token);
+  },
+
+  getCustomerReport(token: string) {
+    return request<CustomerReport>('/reports/customers', {}, token);
+  },
+
+  getProductReport(token: string) {
+    return request<ProductReport>('/reports/products', {}, token);
   },
 
   createReturn(

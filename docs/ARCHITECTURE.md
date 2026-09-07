@@ -180,14 +180,33 @@ un dato que no existe) — solo puede aparecer en "visitas disminuidas" si
 además tenía visitas antes y ahora tiene menos, lo cual por definición
 no le pasa a un cliente nuevo.
 
+## Frontend
+
+Cubre todo el backend descrito arriba: registro de negocio, login,
+clientes (con búsqueda por nombre/teléfono/email), ficha de cliente
+(interacciones y llamadas con resultado estructurado, compras itemizadas
+con selector de productos, devoluciones), catálogo de productos, reglas
+de puntos, segmentos y reportes (clientes y productos). Un botón de
+acción rápida flotante (`+`), presente en toda la app vía `AppLayout`,
+permite crear un cliente, registrar una llamada, o saltar directo a la
+ficha de un cliente para una compra, sin tener que navegar primero por
+el listado — con búsqueda de cliente integrada en el propio modal.
+
+Probado en Chromium con Playwright de punta a punta en dos rondas:
+la primera cubriendo login/registro/clientes/puntos/devoluciones/segmentos
+(verificando números exactos: compra de 40€ a 3 puntos/€ → 120 puntos;
+devolución del 50% → 60 puntos), y la segunda cubriendo productos, compras
+con varias líneas (verificado que 3×25€ + 1×40€ = 115€ tanto en el
+carrito como en el reporte de gasto neto), llamadas con resultado,
+búsqueda de clientes, y el flujo completo del botón de acción rápida.
+
 ## Lo que falta por construir
 
-- **Frontend**: cubre registro de negocio, login, CRUD de clientes, ficha
-  de cliente con interacciones/compras/devoluciones, edición de reglas de
-  puntos y vista de segmentos. Probado en Chromium con Playwright de
-  punta a punta, incluida la verificación numérica exacta de puntos
-  (compra de 40€ a 3 puntos/€ → 120 puntos; devolución del 50% → 60
-  puntos). Falta: edición de clientes desde la UI (la API ya lo soporta).
+- **Edición de clientes desde la UI**: la API ya soporta `PATCH
+  /customers/:id`, falta el formulario en el frontend.
+- **Precio unitario editable en el frontend**: la API de compras admite
+  `unitPrice` por línea (para descuentos puntuales), pero la UI siempre
+  usa el precio actual del producto.
 - **RGPD más completo**: hoy hay borrado lógico, consentimiento de
   marketing y auditoría; falta un endpoint de exportación de datos del
   cliente (portabilidad) y un proceso de purga física tras un plazo.

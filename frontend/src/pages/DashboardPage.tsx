@@ -13,16 +13,17 @@ export function DashboardPage({ onNavigate }: { onNavigate: (view: View) => void
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
 
   if (!session) {
     return null;
   }
 
-  async function loadCustomers() {
+  async function loadCustomers(query?: string) {
     setLoading(true);
     setError(null);
     try {
-      const list = await api.listCustomers(session!.token);
+      const list = await api.listCustomers(session!.token, query);
       setCustomers(list);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
@@ -32,9 +33,10 @@ export function DashboardPage({ onNavigate }: { onNavigate: (view: View) => void
   }
 
   useEffect(() => {
-    loadCustomers();
+    const timeout = setTimeout(() => loadCustomers(search || undefined), 300);
+    return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [search]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -49,7 +51,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (view: View) => void
       setFullName('');
       setPhone('');
       setEmail('');
-      await loadCustomers();
+      await loadCustomers(search || undefined);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
     } finally {
@@ -60,7 +62,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (view: View) => void
   async function handleDelete(id: string) {
     try {
       await api.deleteCustomer(session!.token, id);
-      await loadCustomers();
+      await loadCustomers(search || undefined);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
     }
@@ -91,10 +93,19 @@ export function DashboardPage({ onNavigate }: { onNavigate: (view: View) => void
       </form>
 
       <h2>Clientes</h2>
+      <div className="field" style={{ maxWidth: '320px', marginBottom: '1rem' }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nombre, teléfono o email..."
+        />
+      </div>
       {loading ? (
         <p>Cargando...</p>
       ) : customers.length === 0 ? (
-        <div className="empty-state">Todavía no hay clientes registrados.</div>
+        <div className="empty-state">
+          {search ? 'Sin resultados para esa búsqueda.' : 'Todavía no hay clientes registrados.'}
+        </div>
       ) : (
         <table>
           <thead>
