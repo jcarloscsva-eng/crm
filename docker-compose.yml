@@ -29,6 +29,9 @@ services:
       # DATABASE_URL: el backend SIEMPRE se conecta con app_role (sin bypass de RLS)
       DATABASE_URL: postgresql://app_role:${APP_ROLE_PASSWORD:-app_role_dev_password_change_me}@db:5432/${POSTGRES_DB:-crm}
       JWT_SECRET: ${JWT_SECRET:-dev_secret_change_me}
+      PLATFORM_ADMIN_JWT_SECRET: ${PLATFORM_ADMIN_JWT_SECRET:-dev_platform_admin_secret_change_me}
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-admin@example.com}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-change_me_before_real_use}
       PORT: 3000
     ports:
       - "${BACKEND_PORT:-3000}:3000"

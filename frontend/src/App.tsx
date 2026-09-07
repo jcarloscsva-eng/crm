@@ -5,21 +5,15 @@ import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProductsPage } from './pages/ProductsPage';
-import { RegisterPage } from './pages/RegisterPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SegmentsPage } from './pages/SegmentsPage';
 
-export function App() {
+export function App({ onSwitchToPlatformAdmin }: { onSwitchToPlatformAdmin: () => void }) {
   const { session } = useAuth();
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [view, setView] = useState<View>({ name: 'dashboard' });
 
   if (!session) {
-    return authView === 'login' ? (
-      <LoginPage onSwitchToRegister={() => setAuthView('register')} />
-    ) : (
-      <RegisterPage onSwitchToLogin={() => setAuthView('login')} />
-    );
+    return <LoginPage onSwitchToPlatformAdmin={onSwitchToPlatformAdmin} />;
   }
 
   switch (view.name) {

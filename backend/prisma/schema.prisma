@@ -12,6 +12,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Fuera del modelo multi-tenant a propósito: no tiene tenant_id ni RLS
+// (ver migrations/20260907001000_add_platform_admins/migration.sql).
+model PlatformAdmin {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("platform_admins")
+}
+
 enum UserRole {
   owner
   admin

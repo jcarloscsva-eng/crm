@@ -1,6 +1,6 @@
 import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
-export class RegisterTenantDto {
+export class CreateTenantDto {
   @IsString()
   @Matches(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
     message: 'slug debe ser minúsculas, números y guiones (ej. "peluqueria-marisa")',

@@ -13,7 +13,13 @@ arquitectura y seguridad, y por qué se tomaron.
 
 Construido y probado de punta a punta:
 - Modelo de datos multi-tenant con Row-Level Security en Postgres.
-- Autenticación (registro de negocio + login) con JWT.
+- **Alta de negocios controlada**: no hay registro público. Solo tu cuenta
+  de administrador de la plataforma (sembrada desde variables de entorno)
+  puede autorizar un negocio nuevo y crear su usuario `owner` inicial —
+  con su propio login, JWT y guard, completamente separados de los
+  usuarios de negocio (secreto de firma distinto, ningún token de un tipo
+  sirve para rutas del otro).
+- Login de usuarios de negocio con JWT.
 - Roles por negocio (`owner`, `admin`, `employee`) con control de acceso.
 - CRUD de clientes con campos personalizables por sector (`custom_fields`).
 - Registro de auditoría sobre cambios en clientes.
@@ -38,12 +44,14 @@ Construido y probado de punta a punta:
   cantidad e ingresos.
 - Búsqueda de clientes por nombre/teléfono/email (`GET /customers?q=`).
 - Frontend (React + Vite) completo, incluidas las funciones de arriba:
-  registro de negocio, login, clientes (con búsqueda), ficha de cliente
-  (interacciones/llamadas con resultado, compras itemizadas con productos,
-  devoluciones), catálogo de productos, reglas de puntos, segmentos,
-  reportes, y un botón de acción rápida flotante (nuevo cliente / nueva
-  llamada / nueva compra) visible en toda la app. Sesión persistida en el
-  navegador. Probado en Chromium real de punta a punta.
+  pantalla separada de administrador de la plataforma (autorizar negocios,
+  ver cuántos usuarios/clientes tiene cada uno), login de negocio, clientes
+  (con búsqueda), ficha de cliente (interacciones/llamadas con resultado,
+  compras itemizadas con productos, devoluciones), catálogo de productos,
+  reglas de puntos, segmentos, reportes, y un botón de acción rápida
+  flotante (nuevo cliente / nueva llamada / nueva compra) visible en toda
+  la app. Sesión persistida en el navegador. Probado en Chromium real de
+  punta a punta.
 
 Pendiente (próximas iteraciones):
 - Exportación de datos de un cliente y purga física (RGPD más completo).
@@ -77,9 +85,16 @@ de verdad (ver `docs/ARCHITECTURE.md`).
 ## Probar la API
 
 ```bash
-# 1. Registrar un negocio nuevo (crea el tenant + el usuario "owner")
-curl -X POST http://localhost:3000/auth/register-tenant \
+# 0. Entrar como administrador de la plataforma (credenciales de
+#    PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD en tu .env)
+curl -X POST http://localhost:3000/platform-admin/login \
   -H 'Content-Type: application/json' \
+  -d '{"email": "admin@example.com", "password": "<tu PLATFORM_ADMIN_PASSWORD>"}'
+# -> devuelve un accessToken de administrador de plataforma
+
+# 0b. Autorizar un negocio nuevo (crea el tenant + su usuario "owner")
+curl -X POST http://localhost:3000/platform-admin/tenants \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken de administrador>' \
   -d '{
     "slug": "peluqueria-marisa",
     "businessName": "Peluqueria Marisa",
@@ -88,7 +103,12 @@ curl -X POST http://localhost:3000/auth/register-tenant \
     "ownerPassword": "password123",
     "ownerFullName": "Marisa Gomez"
   }'
-# -> devuelve un accessToken (JWT)
+
+# 1. El owner ya puede hacer login normal (con su propio slug/email/password)
+curl -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"slug": "peluqueria-marisa", "email": "marisa@example.com", "password": "password123"}'
+# -> devuelve un accessToken (JWT) de este negocio
 
 # 2. Usar el token para crear un cliente
 curl -X POST http://localhost:3000/customers \
@@ -155,6 +175,9 @@ DATABASE_URL="postgresql://postgres:<tu_password>@localhost:5432/crm" \
 # Arrancar el backend conectado como app_role (no como superusuario)
 DATABASE_URL="postgresql://app_role:<password_de_app_role>@localhost:5432/crm" \
   JWT_SECRET="cualquier-secreto-largo" \
+  PLATFORM_ADMIN_JWT_SECRET="otro-secreto-distinto" \
+  PLATFORM_ADMIN_EMAIL="admin@example.com" \
+  PLATFORM_ADMIN_PASSWORD="cambia-esto" \
   npm run start:dev
 ```
 
@@ -168,9 +191,17 @@ VITE_API_URL="http://localhost:3000" npm run dev
 
 ## Seguridad — resumen
 
+- **Alta de negocios controlada**: no existe registro público; solo el
+  administrador de la plataforma (una única cuenta sembrada desde
+  `PLATFORM_ADMIN_EMAIL`/`PLATFORM_ADMIN_PASSWORD` al arrancar, sin
+  endpoint de auto-registro) puede autorizar un negocio nuevo.
 - **Aislamiento entre negocios**: cada tabla con datos de un negocio tiene
   políticas de Row-Level Security en Postgres, no solo un `WHERE` en el
   código. Verificado con pruebas reales (ver `docs/ARCHITECTURE.md`).
+- **Aislamiento de administrador de plataforma**: usa un secreto de JWT
+  distinto (`PLATFORM_ADMIN_JWT_SECRET`) al de los usuarios de negocio —
+  un token de un tipo nunca es válido para rutas del otro, verificado con
+  pruebas reales.
 - **Contraseñas**: hasheadas con bcrypt (12 rondas), nunca en texto plano.
 - **Autenticación**: JWT firmado, expira a las 8 horas.
 - **Roles**: cada endpoint sensible exige un rol mínimo (`owner`/`admin`).

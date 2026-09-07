@@ -1,10 +1,13 @@
 import { FormEvent, useState } from 'react';
-import { api, ApiError } from '../api';
-import { useAuth } from '../AuthContext';
+import { ApiError, platformAdminApi } from '../api';
 
-export function LoginPage({ onSwitchToPlatformAdmin }: { onSwitchToPlatformAdmin: () => void }) {
-  const { login } = useAuth();
-  const [slug, setSlug] = useState('');
+export function PlatformAdminLoginPage({
+  onLogin,
+  onSwitchToTenant,
+}: {
+  onLogin: (token: string, email: string) => void;
+  onSwitchToTenant: () => void;
+}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -15,8 +18,8 @@ export function LoginPage({ onSwitchToPlatformAdmin }: { onSwitchToPlatformAdmin
     setError(null);
     setLoading(true);
     try {
-      const auth = await api.login({ slug, email, password });
-      login(auth);
+      const auth = await platformAdminApi.login({ email, password });
+      onLogin(auth.accessToken, auth.admin.email);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
     } finally {
@@ -27,26 +30,16 @@ export function LoginPage({ onSwitchToPlatformAdmin }: { onSwitchToPlatformAdmin
   return (
     <div className="page-centered">
       <form className="card" onSubmit={handleSubmit}>
-        <h1>Entrar</h1>
+        <h1>Administrador de la plataforma</h1>
         {error && <div className="error-banner">{error}</div>}
         <div className="field">
-          <label htmlFor="slug">Identificador del negocio</label>
-          <input
-            id="slug"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="ej. peluqueria-marisa"
-            required
-          />
+          <label htmlFor="paEmail">Email</label>
+          <input id="paEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div className="field">
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </div>
-        <div className="field">
-          <label htmlFor="password">Contraseña</label>
+          <label htmlFor="paPassword">Contraseña</label>
           <input
-            id="password"
+            id="paPassword"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -57,11 +50,8 @@ export function LoginPage({ onSwitchToPlatformAdmin }: { onSwitchToPlatformAdmin
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
         <div className="switch-line">
-          ¿No tienes cuenta? Pídele acceso al administrador de tu negocio.
-        </div>
-        <div className="switch-line">
-          <button type="button" className="btn-link" onClick={onSwitchToPlatformAdmin}>
-            Acceso de administrador de la plataforma
+          <button type="button" className="btn-link" onClick={onSwitchToTenant}>
+            ← Volver al acceso de negocio
           </button>
         </div>
       </form>

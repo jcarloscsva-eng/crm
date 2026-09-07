@@ -64,6 +64,59 @@ de que ninguno puede leer los datos del otro, ni siquiera pidiendo el ID
 exacto del recurso de otro tenant — responde 404, no 403, para no revelar
 que el recurso existe).
 
+### Bug real encontrado: `current_setting` devuelve `''`, no `NULL`, en una conexión reutilizada
+
+Al construir `platform-admin` (una consulta que deliberadamente no fija
+ningún tenant, porque lista negocios de *todos*), apareció un 500 en vez
+de la respuesta esperada. La causa, reproducida directamente en `psql`:
+
+```sql
+BEGIN;
+SELECT set_config('app.tenant_id', '<algún-uuid>', true); -- SET LOCAL
+COMMIT;
+SELECT current_setting('app.tenant_id', true); -- ¡devuelve '', no NULL!
+```
+
+En una conexión de Postgres que **nunca** ha tocado `app.tenant_id`,
+`current_setting(..., true)` devuelve `NULL` limpio (confirmado también
+en `psql`). Pero en cuanto esa variable se ha fijado una vez en la
+conexión — aunque sea con `SET LOCAL`/`set_config(..., true)`, que
+revierte al terminar la transacción — Postgres no la "olvida": el
+"revertir" es a una cadena vacía `''`, no a "sin fijar". Y `''::uuid` no
+es `NULL`, es un **error de casteo** que Postgres lanza de inmediato.
+
+Con Prisma reutilizando conexiones de un pool, esto significa que
+`WITH TENANT` funciona perfecto siempre, pero cualquier consulta que
+toque una tabla con RLS **fuera** de `withTenant()` podía romperse con
+un 500 real (no con "0 filas", que era la intención de diseño) en cuanto
+esa conexión física ya se hubiera usado antes para algún tenant — es
+decir, de forma intermitente y dependiente del estado del pool, el tipo
+de bug más difícil de reproducir y más fácil de no detectar en pruebas
+manuales rápidas.
+
+**Arreglo** (migración `20260907001100_fix_rls_empty_string_tenant_id`):
+todas las políticas RLS pasaron de
+
+```sql
+tenant_id = current_setting('app.tenant_id', true)::uuid
+```
+
+a
+
+```sql
+tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+```
+
+`NULLIF(x, '')` convierte la cadena vacía en `NULL` de verdad antes de
+castear, y `tenant_id = NULL` vuelve a evaluar a `NULL` (ninguna fila) —
+el fail-closed que se buscaba desde el principio, ahora sin el error de
+casteo intermedio. Verificado reaplicando las 5 migraciones desde una
+base de datos vacía y repitiendo las pruebas de aislamiento.
+
+Lección para el futuro: cualquier política RLS nueva en este proyecto
+debe usar `NULLIF(current_setting(...), '')`, nunca
+`current_setting(...)` a secas.
+
 ## Autenticación y autorización
 
 - **Login**: `{ slug, email, password }` → el `slug` identifica el negocio
@@ -73,13 +126,51 @@ que el recurso existe).
   email, role }`, expira a las 8 horas.
 - **Guards globales**: por defecto, toda ruta exige un JWT válido
   (`JwtAuthGuard`) y, cuando así se declara con `@Roles(...)`, un rol
-  concreto (`RolesGuard`). Las rutas públicas (`/auth/register-tenant`,
-  `/auth/login`) se marcan explícitamente con `@Public()` — el valor por
-  defecto es "cerrado", no "abierto".
+  concreto (`RolesGuard`). Las rutas públicas (`/auth/login`,
+  `/platform-admin/login`) se marcan explícitamente con `@Public()` — el
+  valor por defecto es "cerrado", no "abierto".
 - **Contraseñas**: hasheadas con `bcryptjs` (12 rondas). Se usa la variante
   pura en JavaScript (en vez de `argon2` o `bcrypt` nativos) para evitar
   depender de compilación de módulos nativos en este proyecto de práctica;
   en un uso real conviene evaluar `argon2`.
+
+## Administrador de la plataforma
+
+Decisión: no hay auto-registro público de negocios. Solo tú (el operador
+de la app) decides qué negocios existen, y creas su usuario `owner`
+inicial — desde ahí, ese owner ya gestiona sus propios empleados como
+siempre.
+
+Esto introduce un tercer tipo de identidad, **fuera** del modelo
+multi-tenant a propósito:
+
+- Tabla `platform_admins`, **sin** Row-Level Security. RLS aísla datos
+  *entre* tenants; esto no es un dato de tenant, es el nivel por encima
+  de todos ellos — no hay "tenant activo" que aplicarle. Se protege por
+  diseño de aplicación (solo el módulo `platform-admin` la toca), no por
+  RLS.
+- Tu cuenta se siembra sola al arrancar el backend, desde
+  `PLATFORM_ADMIN_EMAIL` / `PLATFORM_ADMIN_PASSWORD` (upsert en
+  `PlatformAdminService.onModuleInit`) — no existe ningún endpoint para
+  crear administradores de plataforma. Cambiar la contraseña es cambiar
+  la variable de entorno y reiniciar.
+- Login separado (`POST /platform-admin/login`) que emite un JWT con
+  **un secreto de firma distinto** (`PLATFORM_ADMIN_JWT_SECRET`, no
+  `JWT_SECRET`) y un payload con forma distinta (`{ sub, email, scope:
+  'platform_admin' }`, sin `tenantId` ni `role`). Es defensa en
+  profundidad real, no solo cosmética: aunque hubiera un bug en cómo se
+  aplican los guards, un token de un tipo no puede validar contra el
+  secreto del otro — la verificación de firma falla antes de mirar el
+  contenido. Verificado con pruebas: un token de owner de negocio da 401
+  en rutas de `platform-admin`, y viceversa.
+- `POST /platform-admin/tenants` crea el tenant + su usuario owner (la
+  misma lógica que antes vivía en el registro público), protegido por
+  `PlatformAdminGuard`. `GET /platform-admin/tenants` lista todos los
+  negocios con su recuento de usuarios/clientes (ver el bug de RLS más
+  abajo, relevante aquí).
+- El frontend trata esto como una aplicación separada de facto
+  (`RootApp.tsx`): sesión propia en `localStorage` bajo otra clave,
+  sin relación con el `AuthContext` de los usuarios de negocio.
 
 ## Modelo de datos
 

@@ -1,13 +1,8 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterTenantDto } from './dto/register-tenant.dto';
-
-const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AuthService {
@@ -15,42 +10,6 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
   ) {}
-
-  async registerTenant(dto: RegisterTenantDto) {
-    const tenantId = randomUUID();
-    const passwordHash = await bcrypt.hash(dto.ownerPassword, BCRYPT_ROUNDS);
-
-    try {
-      const { tenant, user } = await this.prisma.withTenant(tenantId, async (tx) => {
-        const tenant = await tx.tenant.create({
-          data: {
-            id: tenantId,
-            slug: dto.slug,
-            name: dto.businessName,
-            businessType: dto.businessType,
-          },
-        });
-        const user = await tx.user.create({
-          data: {
-            tenantId,
-            email: dto.ownerEmail,
-            passwordHash,
-            fullName: dto.ownerFullName,
-            role: 'owner',
-          },
-        });
-        await tx.pointsConfig.create({ data: { tenantId } });
-        return { tenant, user };
-      });
-
-      return this.issueToken({ userId: user.id, tenantId: tenant.id, email: user.email, role: user.role }, tenant);
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException('El slug del negocio o el email ya están en uso');
-      }
-      throw err;
-    }
-  }
 
   async login(dto: LoginDto) {
     // La tabla tenants tiene lectura pública (no contiene datos de clientes),

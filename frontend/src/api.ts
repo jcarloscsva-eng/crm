@@ -282,3 +282,46 @@ export const api = {
     return request<SegmentsResponse>('/segments', {}, token);
   },
 };
+
+export interface PlatformAdminAuthResponse {
+  accessToken: string;
+  admin: { id: string; email: string };
+}
+
+export interface TenantSummary {
+  id: string;
+  slug: string;
+  name: string;
+  businessType: string | null;
+  createdAt: string;
+  userCount: number;
+  customerCount: number;
+}
+
+export const platformAdminApi = {
+  login(data: { email: string; password: string }) {
+    return request<PlatformAdminAuthResponse>('/platform-admin/login', { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  listTenants(token: string) {
+    return request<TenantSummary[]>('/platform-admin/tenants', {}, token);
+  },
+
+  createTenant(
+    token: string,
+    data: {
+      slug: string;
+      businessName: string;
+      businessType?: string;
+      ownerEmail: string;
+      ownerPassword: string;
+      ownerFullName: string;
+    },
+  ) {
+    return request<{ tenant: TenantSummary; owner: { id: string; email: string } }>(
+      '/platform-admin/tenants',
+      { method: 'POST', body: JSON.stringify(data) },
+      token,
+    );
+  },
+};
