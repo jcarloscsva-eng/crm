@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
 import { View } from './components/AppLayout';
+import { ContactsPage } from './pages/ContactsPage';
 import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { LeadsPage } from './pages/LeadsPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -25,6 +27,10 @@ export function App({ onSwitchToPlatformAdmin }: { onSwitchToPlatformAdmin: () =
       return <ProductsPage onNavigate={setView} />;
     case 'reports':
       return <ReportsPage onNavigate={setView} />;
+    case 'leads':
+      return <LeadsPage onNavigate={setView} />;
+    case 'contacts':
+      return <ContactsPage onNavigate={setView} />;
     default:
       return <DashboardPage onNavigate={setView} />;
   }

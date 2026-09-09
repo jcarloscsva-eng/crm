@@ -409,3 +409,102 @@ export const platformAdminApi = {
     );
   },
 };
+
+export type LeadStage = 'new' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost';
+
+export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: 'new', label: 'Nuevo' },
+  { value: 'contacted', label: 'Contactado' },
+  { value: 'qualified', label: 'Cualificado' },
+  { value: 'proposal', label: 'Propuesta' },
+  { value: 'won', label: 'Ganado' },
+  { value: 'lost', label: 'Perdido' },
+];
+
+export interface Lead {
+  id: string;
+  fullName: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
+  estimatedValue: string | null;
+  stage: LeadStage;
+  notes: string | null;
+  source: string | null;
+  convertedCustomerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContactCategory = 'partner' | 'interesting';
+
+export interface Contact {
+  id: string;
+  category: ContactCategory;
+  fullName: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
+  notes: string | null;
+  source: string | null;
+  createdAt: string;
+}
+
+export const leadsApi = {
+  list(token: string) {
+    return request<Lead[]>('/leads', {}, token);
+  },
+  create(
+    token: string,
+    data: {
+      fullName: string;
+      company?: string;
+      email?: string;
+      phone?: string;
+      linkedinUrl?: string;
+      estimatedValue?: number;
+      notes?: string;
+    },
+  ) {
+    return request<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) }, token);
+  },
+  updateStage(token: string, id: string, stage: LeadStage) {
+    return request<Lead>(`/leads/${id}/stage`, { method: 'PATCH', body: JSON.stringify({ stage }) }, token);
+  },
+  convertToCustomer(token: string, id: string) {
+    return request<{ lead: Lead; customer: Customer }>(`/leads/${id}/convert-to-customer`, { method: 'POST' }, token);
+  },
+  remove(token: string, id: string) {
+    return request<{ id: string }>(`/leads/${id}`, { method: 'DELETE' }, token);
+  },
+};
+
+export const contactsApi = {
+  list(token: string, category?: ContactCategory) {
+    const qs = category ? `?category=${category}` : '';
+    return request<Contact[]>(`/contacts${qs}`, {}, token);
+  },
+  create(
+    token: string,
+    data: {
+      category: ContactCategory;
+      fullName: string;
+      company?: string;
+      email?: string;
+      phone?: string;
+      linkedinUrl?: string;
+      notes?: string;
+      source?: string;
+    },
+  ) {
+    return request<Contact>('/contacts', { method: 'POST', body: JSON.stringify(data) }, token);
+  },
+  update(token: string, id: string, data: Partial<{ fullName: string; company: string; email: string; phone: string; notes: string }>) {
+    return request<Contact>(`/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token);
+  },
+  remove(token: string, id: string) {
+    return request<{ id: string }>(`/contacts/${id}`, { method: 'DELETE' }, token);
+  },
+};

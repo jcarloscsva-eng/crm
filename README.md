@@ -60,6 +60,14 @@ Construido y probado de punta a punta:
   botón de acción rápida flotante (nuevo cliente / nueva llamada / nueva
   compra) visible en toda la app. Sesión persistida en el navegador.
   Probado en Chromium real de punta a punta.
+- **Leads** (`/leads`): pipeline de ventas con 6 fases fijas (nuevo →
+  contactado → cualificado → propuesta → ganado/perdido), tablero kanban
+  con arrastrar y soltar entre columnas (persistido en el backend, no solo
+  visual), y un botón para convertir un lead en cliente real (crea el
+  `Customer`, lo enlaza al lead, y no se puede convertir dos veces).
+- **Contactos** (`/contacts`): partners y contactos interesantes en tablas
+  separadas (misma entidad, categoría distinta), más una tercera pestaña
+  que reutiliza el listado de clientes ya existente — sin duplicar datos.
 
 Pendiente (próximas iteraciones):
 - Exportación de datos de un cliente y purga física (RGPD más completo).
@@ -186,6 +194,24 @@ curl -X POST http://localhost:3000/custom-segments \
     "matchType": "all",
     "conditions": [{"field": "purchased_category", "operator": "eq", "value": "Ventanas"}]
   }'
+
+# 13. Crear un lead y moverlo de fase
+curl -X POST http://localhost:3000/leads \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"fullName": "Lead de prueba", "company": "Acme", "estimatedValue": 5000}'
+curl -X PATCH http://localhost:3000/leads/<leadId>/stage \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"stage": "qualified"}'
+
+# 13b. Convertir un lead en cliente real
+curl -X POST http://localhost:3000/leads/<leadId>/convert-to-customer \
+  -H 'Authorization: Bearer <accessToken>'
+
+# 14. Contactos (partners / contactos interesantes)
+curl -X POST http://localhost:3000/contacts \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"category": "partner", "fullName": "Partner de prueba", "company": "PartnerCo"}'
+curl "http://localhost:3000/contacts?category=partner" -H 'Authorization: Bearer <accessToken>'
 ```
 
 ## Desarrollo sin Docker (backend)

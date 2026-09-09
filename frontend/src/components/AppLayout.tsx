@@ -7,7 +7,9 @@ export type View =
   | { name: 'customer'; customerId: string }
   | { name: 'segments' }
   | { name: 'products' }
-  | { name: 'reports' };
+  | { name: 'reports' }
+  | { name: 'leads' }
+  | { name: 'contacts' };
 
 export function AppLayout({
   active,
@@ -39,6 +41,20 @@ export function AppLayout({
               onClick={() => onNavigate({ name: 'dashboard' })}
             >
               Clientes
+            </button>
+            <button
+              type="button"
+              className={active === 'leads' ? 'nav-link active' : 'nav-link'}
+              onClick={() => onNavigate({ name: 'leads' })}
+            >
+              Leads
+            </button>
+            <button
+              type="button"
+              className={active === 'contacts' ? 'nav-link active' : 'nav-link'}
+              onClick={() => onNavigate({ name: 'contacts' })}
+            >
+              Contactos
             </button>
             <button
               type="button"

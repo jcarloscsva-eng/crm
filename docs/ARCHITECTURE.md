@@ -319,6 +319,36 @@ datos actuales. Verificado con datos sintéticos donde el resultado
 esperado se conocía de antemano (incluyendo Y vs. O, `between`, y el
 caso de un cliente que nunca tuvo actividad).
 
+## Leads y contactos (partners / contactos interesantes)
+
+Dos entidades nuevas, deliberadamente separadas de `customers` en vez de
+unificadas: un lead o un contacto no tiene historial de compras ni
+puntos, eso solo lo tiene un cliente real. Mezclarlas habría significado
+o bien forzar campos de compras/puntos irrelevantes en un lead, o un
+refactor invasivo de `customers` (que ya funciona y está integrado con
+compras/interacciones/puntos) — ninguna opción compensaba.
+
+- **`leads`**: pipeline con 6 fases fijas (`new → contacted → qualified →
+  proposal → won/lost`), no configurables por tenant — misma lógica de
+  "constructor acotado" que en los filtros personalizados: cubre el caso
+  común sin la complejidad de un editor de pipelines. `PATCH
+  /leads/:id/stage` es el endpoint que usa el drag-and-drop del frontend.
+- **Convertir un lead en cliente** (`POST /leads/:id/convert-to-customer`):
+  crea un `Customer` de verdad a partir de los datos del lead, marca el
+  lead como `won` y lo enlaza (`convertedCustomerId`) sin borrarlo — así
+  se conserva de dónde vino ese cliente. Bloqueado convertir el mismo
+  lead dos veces (comprobación de `convertedCustomerId` ya establecido).
+- **`contacts`**: partners y "contactos interesantes" son la misma tabla
+  con una columna `category` distinta, no dos tablas separadas — son
+  estructuralmente idénticos (nombre, empresa, contacto, notas), así que
+  duplicar la tabla solo habría sido repetir código sin ganar nada.
+
+Ambas tablas con RLS usando ya el patrón `NULLIF` correcto desde el
+principio. El frontend reutiliza el listado de `/customers` ya existente
+como una pestaña más dentro de "Contactos", en vez de duplicar esa
+lectura — la pestaña "Clientes" ahí no es un dato nuevo, es una vista
+distinta del mismo dato.
+
 ## Frontend
 
 Cubre todo el backend descrito arriba: registro de negocio, login,
