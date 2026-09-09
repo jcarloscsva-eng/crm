@@ -219,3 +219,58 @@ model SavedSegment {
 
   @@map("saved_segments")
 }
+
+enum LeadStage {
+  new
+  contacted
+  qualified
+  proposal
+  won
+  lost
+
+  @@map("lead_stage")
+}
+
+model Lead {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  fullName            String    @map("full_name")
+  company             String?
+  email               String?
+  phone               String?
+  linkedinUrl         String?   @map("linkedin_url")
+  estimatedValue      Decimal?  @map("estimated_value") @db.Decimal(12, 2)
+  stage               LeadStage @default(new)
+  notes               String?
+  source              String?
+  convertedCustomerId String?   @map("converted_customer_id") @db.Uuid
+  createdBy           String?   @map("created_by") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("leads")
+}
+
+enum ContactCategory {
+  partner
+  interesting
+
+  @@map("contact_category")
+}
+
+model Contact {
+  id          String          @id @default(uuid()) @db.Uuid
+  tenantId    String          @map("tenant_id") @db.Uuid
+  category    ContactCategory
+  fullName    String          @map("full_name")
+  company     String?
+  email       String?
+  phone       String?
+  linkedinUrl String?         @map("linkedin_url")
+  notes       String?
+  source      String?
+  createdBy   String?         @map("created_by") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("contacts")
+}

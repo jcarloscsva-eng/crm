@@ -4,9 +4,11 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { ContactsModule } from './contacts/contacts.module';
 import { CustomersModule } from './customers/customers.module';
 import { CustomSegmentsModule } from './custom-segments/custom-segments.module';
 import { InteractionsModule } from './interactions/interactions.module';
+import { LeadsModule } from './leads/leads.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { PointsConfigModule } from './points-config/points-config.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -33,6 +35,8 @@ import { UsersModule } from './users/users.module';
     ReportsModule,
     PlatformAdminModule,
     CustomSegmentsModule,
+    LeadsModule,
+    ContactsModule,
   ],
   providers: [
     // Guards globales: por defecto TODA ruta exige JWT válido + rol autorizado.
