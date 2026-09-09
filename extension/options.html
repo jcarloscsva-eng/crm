@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CRM Pymes — Configuración</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 380px;
+        margin: 40px auto;
+        color: #1f2430;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      .field {
+        margin-bottom: 12px;
+      }
+      .field label {
+        display: block;
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 3px;
+      }
+      .field input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid #e0e2e7;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        padding: 9px 14px;
+        font-size: 14px;
+        font-weight: 500;
+        background: #2f6f4f;
+        color: white;
+        width: 100%;
+      }
+      .banner {
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+      .banner.error {
+        background: #fdecea;
+        color: #b3261e;
+      }
+      .banner.success {
+        background: #eaf5ee;
+        color: #2f6f4f;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Conectar con tu CRM</h1>
+    <p class="muted">
+      La contraseña no se guarda — solo se usa una vez para obtener el token de acceso, que
+      caduca a las 8 horas (igual que en la web del CRM).
+    </p>
+    <div id="banner" class="banner" hidden></div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="backendUrl">URL del backend</label>
+        <input id="backendUrl" value="http://localhost:3000" required />
+      </div>
+      <div class="field">
+        <label for="slug">Identificador del negocio</label>
+        <input id="slug" placeholder="ej. peluqueria-marisa" required />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" required />
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" required />
+      </div>
+      <button type="submit" id="connectBtn">Conectar</button>
+    </form>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -349,6 +349,52 @@ como una pestaña más dentro de "Contactos", en vez de duplicar esa
 lectura — la pestaña "Clientes" ahí no es un dato nuevo, es una vista
 distinta del mismo dato.
 
+## Extensión de Chrome (captura de LinkedIn)
+
+Carpeta `extension/`, independiente del backend/frontend — Manifest V3,
+sin ningún `content_script` persistente ni permiso de host amplio
+(`host_permissions`). Diseño deliberadamente de mínimo privilegio:
+
+- **Extracción a demanda, no en segundo plano**: no hay nada corriendo
+  mientras navegas. El popup usa `chrome.scripting.executeScript` para
+  inyectar la función de extracción solo cuando el usuario, viendo un
+  perfil, hace clic en "Extraer de esta página" — apoyado en el permiso
+  temporal `activeTab` que concede ese mismo clic en el icono de la
+  extensión, no en un permiso permanente sobre `linkedin.com`.
+- **La contraseña nunca se persiste**: `lib/api.js` la usa una sola vez
+  contra `POST /auth/login` y solo guarda en `chrome.storage.local` el
+  JWT resultante y su expiración (decodificada del propio JWT, sin
+  verificar firma en el cliente — la verificación real la hace el
+  backend en cada petición).
+- **Best-effort explícito, no una API**: `lib/extract-linkedin.js` lee el
+  DOM con selectores (`h1`, `.text-body-medium`, etc.) porque LinkedIn no
+  publica una estructura de HTML estable ni una API pública para esto.
+  El formulario del popup siempre se rellena para revisar/editar antes
+  de guardar — nunca se envía nada a la API sin que el usuario lo vea
+  primero.
+- **Términos de servicio de LinkedIn**: pensada para uso manual,
+  perfil a perfil, mientras el usuario navega — no para scraping masivo
+  ni automatizado. Documentado explícitamente en `extension/README.md`.
+- Reutiliza los endpoints ya existentes (`POST /leads`, `POST /contacts`)
+  con `source: "linkedin_extension"`, sin ningún endpoint nuevo en el
+  backend — la extensión es un cliente más de la misma API, con las
+  mismas políticas RLS y de roles que el frontend web.
+
+Probado en tres niveles independientes, cada uno con su alcance explícito:
+1. Lógica de extracción (`extract-linkedin.js`) contra una página HTML
+   local que imita la forma del DOM de LinkedIn (no LinkedIn real) —
+   Playwright + Chromium, verificando que nombre/titular/ubicación/empresa
+   se leen correctamente.
+2. Flujo de guardado (`lib/api.js`) contra el backend real corriendo en
+   local, simulando solo `chrome.storage.local` (lo único que no existe
+   en Node) — login, creación de lead, creación de contacto, y rechazo
+   de contraseña incorrecta con datos reales.
+3. Carga de la extensión completa (manifest + popup + options) en un
+   Chromium real vía `launchPersistentContext` con `--load-extension`,
+   confirmando que Chrome la acepta y que popup/options se renderizan sin
+   errores de JS — sin abrir LinkedIn real, que es lo que el propio
+   diseño evita hacer de forma automatizada.
+
 ## Frontend
 
 Cubre todo el backend descrito arriba: registro de negocio, login,

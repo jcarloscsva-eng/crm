@@ -68,6 +68,10 @@ Construido y probado de punta a punta:
 - **Contactos** (`/contacts`): partners y contactos interesantes en tablas
   separadas (misma entidad, categoría distinta), más una tercera pestaña
   que reutiliza el listado de clientes ya existente — sin duplicar datos.
+- **Extensión de Chrome** (`extension/`): guarda el perfil de LinkedIn que
+  tienes abierto como lead o contacto con un clic, extracción manual y a
+  demanda (nunca en segundo plano). Ver `extension/README.md` para
+  instalación, uso y las limitaciones/caveats de scraping de LinkedIn.
 
 Pendiente (próximas iteraciones):
 - Exportación de datos de un cliente y purga física (RGPD más completo).
@@ -213,6 +217,16 @@ curl -X POST http://localhost:3000/contacts \
   -d '{"category": "partner", "fullName": "Partner de prueba", "company": "PartnerCo"}'
 curl "http://localhost:3000/contacts?category=partner" -H 'Authorization: Bearer <accessToken>'
 ```
+
+## Extensión de Chrome (captura de LinkedIn)
+
+Carpeta `extension/`, no forma parte del backend/frontend — es una
+extensión de Chrome (Manifest V3) independiente que habla con la misma
+API. Ver `extension/README.md` para instalación paso a paso, uso, y los
+caveats de scraping de LinkedIn (extracción manual y a demanda, sin
+scripts en segundo plano, best-effort porque LinkedIn no documenta su
+HTML). Guarda lo extraído como `lead` o `contact` (partner/interesante)
+usando los mismos endpoints de arriba, con `source: "linkedin_extension"`.
 
 ## Desarrollo sin Docker (backend)
 

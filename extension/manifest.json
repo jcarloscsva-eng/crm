@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "CRM Pymes — Captura de LinkedIn",
+  "version": "0.1.0",
+  "description": "Guarda el perfil de LinkedIn que estás viendo como lead o contacto en tu CRM.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html"
+}
