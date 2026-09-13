@@ -41,6 +41,13 @@ export function CustomerDetailPage({
   const [returnReason, setReturnReason] = useState('');
   const [savingReturn, setSavingReturn] = useState(false);
 
+  const [editing, setEditing] = useState(false);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editConsent, setEditConsent] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   if (!session) {
     return null;
   }
@@ -111,6 +118,12 @@ export function CustomerDetailPage({
     setCart((prev) => prev.filter((l) => l.productId !== productId));
   }
 
+  function updateLineUnitPrice(productId: string, value: string) {
+    const unitPrice = Number(value);
+    if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    setCart((prev) => prev.map((l) => (l.productId === productId ? { ...l, unitPrice } : l)));
+  }
+
   const cartTotal = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
   async function handleCreatePurchase(e: FormEvent) {
@@ -120,7 +133,7 @@ export function CustomerDetailPage({
     setError(null);
     try {
       await api.createPurchase(session!.token, customerId, {
-        items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+        items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice })),
       });
       setCart([]);
       await loadAll();
@@ -128,6 +141,51 @@ export function CustomerDetailPage({
       setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
     } finally {
       setSavingPurchase(false);
+    }
+  }
+
+  function openEdit() {
+    if (!customer) return;
+    setEditFullName(customer.fullName);
+    setEditPhone(customer.phone ?? '');
+    setEditEmail(customer.email ?? '');
+    setEditConsent(customer.consentMarketing);
+    setEditing(true);
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    setSavingEdit(true);
+    setError(null);
+    try {
+      await api.updateCustomer(session!.token, customerId, {
+        fullName: editFullName,
+        phone: editPhone || undefined,
+        email: editEmail || undefined,
+        consentMarketing: editConsent,
+      });
+      setEditing(false);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleExport() {
+    setError(null);
+    try {
+      const data = await api.exportCustomerData(session!.token, customerId);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cliente-${customerId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor');
     }
   }
 
@@ -163,7 +221,65 @@ export function CustomerDetailPage({
         <p>Cargando...</p>
       ) : (
         <>
-          <h2>{customer.fullName}</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h2 style={{ margin: 0 }}>{customer.fullName}</h2>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" className="btn-secondary" onClick={handleExport}>
+                Exportar datos (RGPD)
+              </button>
+              {!editing && (
+                <button type="button" className="btn-secondary" onClick={openEdit}>
+                  Editar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {editing && (
+            <form className="inline-form" onSubmit={handleSaveEdit} style={{ marginTop: '0.75rem' }}>
+              <div className="field">
+                <label htmlFor="editFullName">Nombre</label>
+                <input
+                  id="editFullName"
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  required
+                  minLength={2}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="editPhone">Teléfono</label>
+                <input id="editPhone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="editEmail">Email</label>
+                <input
+                  id="editEmail"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.4rem' }}>
+                <input
+                  id="editConsent"
+                  type="checkbox"
+                  checked={editConsent}
+                  onChange={(e) => setEditConsent(e.target.checked)}
+                />
+                <label htmlFor="editConsent" style={{ margin: 0 }}>
+                  Consentimiento de marketing
+                </label>
+              </div>
+              <button type="submit" disabled={savingEdit}>
+                {savingEdit ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
+                Cancelar
+              </button>
+            </form>
+          )}
+
           <div className="points-summary">
             <div className="stat">
               <div className="value">{customer.pointsBalance}</div>
@@ -315,7 +431,17 @@ export function CustomerDetailPage({
                           <tr key={l.productId}>
                             <td>{l.productName}</td>
                             <td>{l.quantity}</td>
-                            <td>{l.unitPrice} €</td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={l.unitPrice}
+                                onChange={(e) => updateLineUnitPrice(l.productId, e.target.value)}
+                                style={{ width: '5.5rem' }}
+                                aria-label={`Precio unitario de ${l.productName}`}
+                              />
+                            </td>
                             <td>{(l.unitPrice * l.quantity).toFixed(2)} €</td>
                             <td>
                               <button type="button" className="delete-link" onClick={() => removeLine(l.productId)}>

@@ -20,9 +20,23 @@ export class CustomersController {
     return this.customersService.findAll(currentUser.tenantId, q);
   }
 
+  // Debe declararse antes de ':id': si no, Nest la trataría como
+  // GET /customers/:id con id="deleted".
+  @Roles('owner', 'admin')
+  @Get('deleted')
+  findAllDeleted(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.customersService.findAllDeleted(currentUser.tenantId);
+  }
+
   @Get(':id')
   findOne(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string) {
     return this.customersService.findOne(currentUser.tenantId, id);
+  }
+
+  @Roles('owner', 'admin')
+  @Get(':id/export')
+  exportData(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string) {
+    return this.customersService.exportData(currentUser.tenantId, id);
   }
 
   @Patch(':id')
@@ -38,5 +52,11 @@ export class CustomersController {
   @Delete(':id')
   remove(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string) {
     return this.customersService.softDelete(currentUser.tenantId, currentUser.userId, id);
+  }
+
+  @Roles('owner', 'admin')
+  @Delete(':id/purge')
+  purge(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string) {
+    return this.customersService.purge(currentUser.tenantId, currentUser.userId, id);
   }
 }

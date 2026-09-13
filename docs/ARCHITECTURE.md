@@ -415,13 +415,71 @@ con varias líneas (verificado que 3×25€ + 1×40€ = 115€ tanto en el
 carrito como en el reporte de gasto neto), llamadas con resultado,
 búsqueda de clientes, y el flujo completo del botón de acción rápida.
 
-## Lo que falta por construir
+## RGPD: portabilidad y borrado físico definitivo
 
-- **Edición de clientes desde la UI**: la API ya soporta `PATCH
-  /customers/:id`, falta el formulario en el frontend.
-- **Precio unitario editable en el frontend**: la API de compras admite
-  `unitPrice` por línea (para descuentos puntuales), pero la UI siempre
-  usa el precio actual del producto.
-- **RGPD más completo**: hoy hay borrado lógico, consentimiento de
-  marketing y auditoría; falta un endpoint de exportación de datos del
-  cliente (portabilidad) y un proceso de purga física tras un plazo.
+Sobre la base que ya existía (borrado lógico, consentimiento de
+marketing, registro de auditoría), tres piezas nuevas en
+`customers.service.ts`/`customers.controller.ts`:
+
+- **`GET /customers/:id/export`** (owner/admin): derecho a la
+  portabilidad. Devuelve un único JSON con el perfil del cliente,
+  todas sus interacciones, compras (con líneas de producto) y
+  devoluciones. Deliberadamente **no excluye clientes ya borrados
+  lógicamente** — una solicitud de portabilidad puede llegar antes de
+  pedir el borrado, o justo para quedarse con una copia antes de
+  purgar.
+- **`GET /customers/deleted`** (owner/admin): la "papelera" — clientes
+  con `deletedAt` no nulo. Necesaria porque el listado normal
+  (`GET /customers`) los excluye a propósito, así que sin este
+  endpoint no habría forma de llegar a un cliente ya borrado para
+  exportarlo o purgarlo.
+- **`DELETE /customers/:id/purge`** (owner/admin): derecho al olvido
+  real, borrado físico con `tx.customer.delete()`. **Exige que el
+  cliente ya esté borrado lógicamente** (responde 400 si no) — dos
+  pasos deliberados, para que una operación irreversible nunca sea el
+  primer clic posible. Antes de borrar, escribe una entrada de
+  auditoría (`customer.purged`) con el `entityId` pero sin copiar
+  ningún dato personal del cliente en el `metadata` — la propia idea
+  de "borrado definitivo" pierde sentido si el nombre sigue viviendo
+  en otra tabla.
+
+**Por qué la purga no necesita borrar nada más a mano**: `interactions`,
+`purchases`, `purchase_items` y `returns` ya tenían
+`onDelete: Cascade` hacia `customers` desde el modelo de datos
+original — `tx.customer.delete()` los arrastra solo. `audit_log` no
+tiene una FK real hacia `customers` (`entity_id` es un UUID suelto sin
+relación declarada en Prisma), así que el historial de auditoría
+sobrevive con normalidad a la purga de un cliente, que es lo que se
+espera de un registro de auditoría.
+
+La única referencia que sí bloqueaba el `DELETE` era
+`leads.converted_customer_id` (`REFERENCES customers(id)` sin
+`ON DELETE` explícito, por tanto `RESTRICT` por defecto): un cliente
+que vino de un lead convertido no debería poder impedir su propia
+purga. Migración `20260913000100_customer_rgpd_purge`: se cambió esa
+FK a `ON DELETE SET NULL` — el lead conserva su propio historial (no
+es el dato que se está purgando), solo pierde el enlace a un cliente
+que ya no existe.
+
+Verificado con datos reales, no solo revisando el código: una compra
+con precio unitario editado se exporta con el importe correcto: purgar
+sin borrado lógico previo devuelve 400; tras purgar, una consulta
+directa a Postgres confirma 0 filas huérfanas en
+`purchases`/`purchase_items`/`interactions`/`returns`; y un lead
+convertido en el cliente purgado conserva su fila con
+`convertedCustomerId = NULL` en vez de bloquear el `DELETE`.
+
+## Edición de clientes y precio unitario editable
+
+Dos huecos que quedaban entre lo que la API ya soportaba y lo que el
+frontend exponía, cerrados sin tocar el backend:
+
+- **Editar cliente**: la ficha de cliente (`CustomerDetailPage.tsx`)
+  gana un botón "Editar" que abre un formulario inline (nombre,
+  teléfono, email, consentimiento de marketing) sobre el `PATCH
+  /customers/:id` que ya existía desde el módulo de clientes original.
+- **Precio unitario editable**: cada línea del carrito de una compra
+  nueva tiene ahora un `<input>` numérico en vez de texto estático; al
+  confirmar, se envía explícitamente `unitPrice` por línea (la API ya
+  lo aceptaba como override opcional del precio del catálogo, pensado
+  para descuentos puntuales, pero la UI hasta ahora nunca lo usaba).

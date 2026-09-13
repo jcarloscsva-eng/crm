@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -84,12 +84,7 @@ export class CustomersService {
     });
   }
 
-  /**
-   * Borrado lógico: conserva el registro para trazabilidad de auditoría pero
-   * lo excluye de toda lectura normal. El borrado físico definitivo (derecho
-   * al olvido real) es una operación aparte, deliberadamente no expuesta
-   * todavía por la API.
-   */
+  /** Borrado lógico. */
   async softDelete(tenantId: string, userId: string, id: string) {
     await this.findOne(tenantId, id);
     return this.prisma.withTenant(tenantId, async (tx) => {
@@ -104,6 +99,72 @@ export class CustomersService {
         },
       });
       return customer;
+    });
+  }
+
+  findAllDeleted(tenantId: string) {
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.customer.findMany({
+        where: { deletedAt: { not: null } },
+        orderBy: { deletedAt: 'desc' },
+      }),
+    );
+  }
+
+  /** A diferencia de findOne, no excluye clientes ya borrados lógicamente. */
+  private async findOneIncludingDeleted(tenantId: string, id: string) {
+    const customer = await this.prisma.withTenant(tenantId, (tx) => tx.customer.findFirst({ where: { id } }));
+    if (!customer) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+    return customer;
+  }
+
+  /**
+   * Derecho a la portabilidad (RGPD): todo lo que el CRM guarda sobre este
+   * cliente, en un único documento. No excluye clientes ya borrados
+   * lógicamente, porque una solicitud de portabilidad puede llegar antes de
+   * pedir el borrado, o para conservar una copia justo antes de purgar.
+   */
+  async exportData(tenantId: string, id: string) {
+    const customer = await this.findOneIncludingDeleted(tenantId, id);
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const [interactions, purchases, returns] = await Promise.all([
+        tx.interaction.findMany({ where: { customerId: id }, orderBy: { occurredAt: 'asc' } }),
+        tx.purchase.findMany({
+          where: { customerId: id },
+          include: { items: { include: { product: true } } },
+          orderBy: { occurredAt: 'asc' },
+        }),
+        tx.return.findMany({ where: { customerId: id }, orderBy: { occurredAt: 'asc' } }),
+      ]);
+      return { exportedAt: new Date().toISOString(), customer, interactions, purchases, returns };
+    });
+  }
+
+  /**
+   * Borrado físico definitivo (derecho al olvido real). Exige que el
+   * cliente ya esté borrado lógicamente: dos pasos deliberados en vez de
+   * uno, para que una purga irreversible nunca sea el primer clic.
+   *
+   * interactions/purchases/purchase_items/returns caen en cascada (FK
+   * ON DELETE CASCADE hacia customers). audit_log no referencia
+   * customers por FK (entity_id es un UUID suelto), así que el historial
+   * de auditoría persiste con normalidad tras la purga.
+   */
+  async purge(tenantId: string, userId: string, id: string) {
+    const customer = await this.findOneIncludingDeleted(tenantId, id);
+    if (!customer.deletedAt) {
+      throw new BadRequestException(
+        'Solo se puede purgar un cliente que ya esté borrado. Bórralo primero (DELETE /customers/:id).',
+      );
+    }
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      await tx.auditLog.create({
+        data: { tenantId, userId, action: 'customer.purged', entityType: 'customer', entityId: id },
+      });
+      await tx.customer.delete({ where: { id } });
+      return { purged: true, id };
     });
   }
 }

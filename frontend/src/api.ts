@@ -115,6 +115,14 @@ export interface Purchase {
   returns: ReturnRecord[];
 }
 
+export interface CustomerExport {
+  exportedAt: string;
+  customer: Customer;
+  interactions: Interaction[];
+  purchases: Omit<Purchase, 'returns'>[];
+  returns: ReturnRecord[];
+}
+
 export interface PointsConfig {
   tenantId: string;
   pointsPerCurrencyUnit: string;
@@ -256,8 +264,28 @@ export const api = {
     return request<Customer>(`/customers/${id}`, {}, token);
   },
 
+  updateCustomer(
+    token: string,
+    id: string,
+    data: { fullName?: string; phone?: string; email?: string; consentMarketing?: boolean },
+  ) {
+    return request<Customer>(`/customers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, token);
+  },
+
   deleteCustomer(token: string, id: string) {
     return request<Customer>(`/customers/${id}`, { method: 'DELETE' }, token);
+  },
+
+  listDeletedCustomers(token: string) {
+    return request<Customer[]>('/customers/deleted', {}, token);
+  },
+
+  exportCustomerData(token: string, id: string) {
+    return request<CustomerExport>(`/customers/${id}/export`, {}, token);
+  },
+
+  purgeCustomer(token: string, id: string) {
+    return request<{ purged: boolean; id: string }>(`/customers/${id}/purge`, { method: 'DELETE' }, token);
   },
 
   listInteractions(token: string, customerId: string) {

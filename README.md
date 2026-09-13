@@ -72,14 +72,19 @@ Construido y probado de punta a punta:
   tienes abierto como lead o contacto con un clic, extracción manual y a
   demanda (nunca en segundo plano). Ver `extension/README.md` para
   instalación, uso y las limitaciones/caveats de scraping de LinkedIn.
+- **RGPD ampliado**: `GET /customers/:id/export` (portabilidad — toda la
+  información del cliente en un JSON), `GET /customers/deleted`
+  (papelera), `DELETE /customers/:id/purge` (borrado físico definitivo,
+  solo permitido si el cliente ya tiene borrado lógico previo — dos
+  pasos deliberados para que una purga irreversible nunca sea el primer
+  clic). Cascada real verificada: purgar borra también sus interacciones,
+  compras, líneas de compra y devoluciones.
+- **Edición de clientes** desde el frontend (ficha de cliente → "Editar").
+- **Precio unitario editable** en cada línea de una compra nueva, antes
+  de confirmarla (la API ya lo admitía; ahora también la UI).
 
-Pendiente (próximas iteraciones):
-- Exportación de datos de un cliente y purga física (RGPD más completo).
-- Edición de clientes desde el frontend (por API ya existe, `PATCH
-  /customers/:id`, falta el formulario).
-- Permitir editar el precio unitario de una línea de compra desde el
-  frontend (la API ya lo admite; hoy la UI siempre usa el precio actual
-  del producto).
+Pendiente (próximas iteraciones): ninguno de los puntos planteados hasta
+ahora — el roadmap se irá ampliando según nuevas necesidades.
 
 ## Requisitos
 
@@ -216,6 +221,19 @@ curl -X POST http://localhost:3000/contacts \
   -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
   -d '{"category": "partner", "fullName": "Partner de prueba", "company": "PartnerCo"}'
 curl "http://localhost:3000/contacts?category=partner" -H 'Authorization: Bearer <accessToken>'
+
+# 15. Editar un cliente
+curl -X PATCH http://localhost:3000/customers/<customerId> \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' \
+  -d '{"fullName": "Nombre corregido", "consentMarketing": true}'
+
+# 16. RGPD: exportar todos los datos de un cliente (portabilidad)
+curl http://localhost:3000/customers/<customerId>/export -H 'Authorization: Bearer <accessToken>'
+
+# 17. RGPD: borrado físico definitivo (exige borrado lógico previo)
+curl -X DELETE http://localhost:3000/customers/<customerId> -H 'Authorization: Bearer <accessToken>'
+curl http://localhost:3000/customers/deleted -H 'Authorization: Bearer <accessToken>'
+curl -X DELETE http://localhost:3000/customers/<customerId>/purge -H 'Authorization: Bearer <accessToken>'
 ```
 
 ## Extensión de Chrome (captura de LinkedIn)
